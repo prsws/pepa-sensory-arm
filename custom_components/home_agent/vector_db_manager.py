@@ -22,6 +22,12 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.event import async_track_time_interval
 
+from homeassistant.helpers import (
+    area_registry as ar,
+    device_registry as dr,
+    entity_registry as er,
+)
+
 if TYPE_CHECKING:
     from chromadb.api import ClientAPI
     from chromadb.api.models.Collection import Collection
@@ -565,9 +571,23 @@ class VectorDBManager:
                 parts.append(f"Source: {source}")
 
         # Add location information if available
-        area = state.attributes.get("area")
-        if area:
-            parts.append(f"Location: {area}")
+        entity_registry = er.async_get(self.hass)
+        area_registry = ar.async_get(self.hass)
+        device_registry = dr.async_get(self.hass)
+        try:
+
+            if (entity_entry := entity_registry.async_get(entity_id)) and entity_entry.device_id:
+                if (device_entry := device_registry.async_get(entity_entry.device_id)) and device_entry.area_id:
+                    if area := area_registry.async_get_area(device_entry.area_id):
+                        parts.append(f"Location: {area.name}")
+                if entity_entry.aliases:
+                    clean_aliases = [a for a in entity_entry.aliases if isinstance(a, str)]
+                    
+                    if clean_aliases:
+                        parts.append(f"Aliases: {', '.join(clean_aliases)}")
+
+        except Exception:
+            _LOGGER.debug("Could not determine area for entity: %s", entity_id)
 
         return " | ".join(parts)
 
