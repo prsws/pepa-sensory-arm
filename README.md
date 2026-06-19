@@ -6,22 +6,16 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.3.1+-blue.svg)](https://www.home-assistant.io/)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 
-A highly customizable Home Assistant custom component that provides intelligent conversational AI capabilities with advanced tool calling, context injection, and conversation history management.
+A highly customizable Home Assistant custom component that performs as the sensory arm of the Pepa system.
+AI capabilities include advanced tool calling, context injection, and conversation history management.
 
 ## What's New in v0.9.5
 
-- **Vector Reindex Optimization** - Skip reindexing entities when state and attributes are unchanged, reducing unnecessary re-embeddings
-- **Datetime Serialization Fix** - Properly handle datetime objects in tool results and vector DB context provider
-- **Area Lookup Fix** - Use entity/device registry for area resolution instead of state.attributes for more reliable room detection
+- **First Refactor from Upstream** - This version is the first after forking aradlein/home_agent_llm Thank you!
 
 [View Full Changelog](https://github.com/prsws/pepa-sensory-arm/releases)
 
 ---
-
-### Previous Release: v0.9.4
-
-- **Embedding Cache Memory Leak Fix** - Fixed a memory leak where the embedding cache accumulated stale entries for frequently-changing entities
-- **CI Fixes** - Fixed version validation workflow, flake8, and black formatting issues
 
 ## Overview
 
@@ -309,68 +303,9 @@ MIT License
 
 ## Credits
 
-Built with inspiration from the extended_openai_conversation integration. Special thanks to the Home Assistant community.
+Based on Home Agent by Anton Radlein. Built with inspiration from the extended_openai_conversation integration. Special thanks to the Home Assistant community.
 
 ## Changelog
 
 ### v0.9.5 (Latest)
-- **Fix**: Skip vector reindex when entity state and attributes unchanged — reduces unnecessary re-embeddings
-- **Fix**: Handle datetime serialization in tool results and vector DB context
-- **Fix**: Use entity/device registry for area lookup instead of state.attributes
-
-### v0.9.4
-- **Fix**: Evict stale embedding cache entries on entity state change — prevents memory leak from frequently-changing entities (#111)
-- **Fix**: Version validation CI workflow grep pattern anchored to avoid false mismatches
-- **Fix**: Black formatting and flake8 compliance
-
-### v0.9.3
-> **Compatibility Notice:** This release targets **Home Assistant 2026.3.1** and **Python 3.14**. It may have backwards compatibility issues with older HA versions or Python 3.12/3.13. If you experience problems, please try a previous release.
-- **Fix**: Upgraded `chromadb-client` to `1.5.3` to resolve Python 3.14 incompatibility (removal of `imghdr` standard library module)
-- **Fix**: Updated dev requirements and test mocks to align with chromadb-client 1.5.3 API
-- **Changed**: Minimum supported Home Assistant version updated to 2026.3.1
-
-### v0.9.2
-- **Fix**: Move initial entity indexing to background task to prevent setup timeout on large installations
-
-### v0.9.1
-- **Fix**: Resolve multiple memory leaks causing ~6GB growth over time — LRU eviction for embedding caches, debounced batch reindexing, HTTP session reuse, conversation history enforcement, and proper resource cleanup on shutdown
-
-### v0.9.0
-- **Feature**: Azure OpenAI support - native integration with Azure OpenAI deployments including API versioning and endpoint handling (#9)
-- **Feature**: Universal language support - works with any Home Assistant language setting via MATCH_ALL (#15)
-- **Feature**: Jinja template support for API key fields - use Home Assistant templates for dynamic secrets (#14)
-- **Fix**: Improved compatibility with proxy gateways like Cloudflare AI Gateway (#17)
-
-### v0.8.8
-- **Feature**: Include entity/device labels in system prompt for better LLM context (contributed by @zopanix)
-- **Testing**: Comprehensive test coverage for labels feature
-
-### v0.8.7
-- **Feature**: Custom service tools now support `return_response: true` for services that return data (like `calendar.get_events`)
-
-### v0.8.6
-- **Feature**: TTFT (Time To First Token) and voice pipeline metrics for performance monitoring
-- **Feature**: Configurable max context tokens option (fixes #65)
-- **Fix**: Memory retrieval no longer creates transient memories or duplicates
-- **Enhancement**: Comprehensive testing improvements and GitHub issue fixes
-
-### v0.8.5
-- **Feature**: OpenAI-compatible embedding endpoints - Vector DB now respects configured `embedding_base_url` for OpenAI provider (fixes #6)
-- **Enhancement**: Switched to async OpenAI client using Home Assistant's native HTTP client
-- **Enhancement**: Improved retry logic with proper exponential backoff for embedding requests
-
-### v0.8.4
-- **Feature**: Reasoning model support - Filter `<think>...</think>` blocks from LLM output, enabling support for reasoning models like Qwen3, DeepSeek R1, and o1/o3
-- **Fix**: Only send `keep_alive` parameter to Ollama backends; prevents 400 errors with OpenAI and other cloud APIs
-
-### v0.8.3
-- **Enhancement**: Updated minimum Home Assistant version to 2025.11.0 for improved compatibility
-- **Fix**: CI test environment now uses pinned Home Assistant dependencies
-- **Docs**: Successfully submitted to HACS for official community store listing
-
-### v0.8.2
-- **Feature**: Feature-based service filtering with intelligent parameter hints
-- **Enhancement**: Brightness parameter standardization (brightness_pct 0-100 instead of brightness 0-255)
-- **Fix**: Move play_media to base services for all media_player entities
-- **Enhancement**: Comprehensive entity services reference documentation
-- **Enhancement**: Improved system prompts with standardized parameter rules
+- **New Release**: Initial release as Pepa Sensory Arm
