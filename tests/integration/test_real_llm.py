@@ -1,6 +1,6 @@
 """Integration tests for LLM integration with real or mock API endpoints.
 
-These tests verify that the HomeAgent correctly interacts with LLM endpoints
+These tests verify that the PepaSensoryArm correctly interacts with LLM endpoints
 (Ollama, OpenAI, etc.) for conversation processing, tool calling,
 and streaming responses.
 
@@ -25,8 +25,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.const import ATTR_ENTITY_ID
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
@@ -41,7 +41,7 @@ from custom_components.home_agent.const import (
     CONF_STREAMING_ENABLED,
     CONF_TOOLS_MAX_CALLS_PER_TURN,
 )
-from custom_components.home_agent.helpers import strip_thinking_blocks
+from custom_components.pepa_sensory_arm.helpers import strip_thinking_blocks
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,14 +73,14 @@ async def test_basic_conversation(
     """Test simple Q&A with LLM (real or mock).
 
     This test verifies that:
-    1. HomeAgent can connect to the LLM endpoint
+    1. PepaSensoryArm can connect to the LLM endpoint
     2. Basic conversation processing works
     3. Response is returned successfully
 
     With mocks: Verifies agent processes mock responses correctly.
     With real LLM: Verifies actual conversational ability.
     """
-    # Configure HomeAgent with LLM
+    # Configure PepaSensoryArm with LLM
     config = {
         CONF_LLM_BASE_URL: llm_config["base_url"],
         CONF_LLM_API_KEY: llm_config.get("api_key", ""),
@@ -96,11 +96,11 @@ async def test_basic_conversation(
     # Mock entity exposure to return no entities (simple test)
     # async_should_expose is actually a sync function despite the name
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Process a simple message
             response = await agent.process_message(
@@ -176,7 +176,7 @@ async def test_tool_calling(
 
     # Mock entity exposure to return False (avoid entity registry calls)
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         # Setup test states
@@ -206,7 +206,7 @@ async def test_tool_calling(
         test_hass.services.async_call = AsyncMock(side_effect=mock_service_call)
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock the get_exposed_entities method to return test entities
             def mock_exposed_entities():
@@ -284,11 +284,11 @@ async def test_multi_turn_context(
         mock_llm_server.add_response("color", "You like the color blue.")
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             conversation_id = "test_multi_turn"
 
@@ -375,11 +375,11 @@ async def test_streaming_response(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Collect streaming chunks
             chunks = []
@@ -459,10 +459,10 @@ async def test_error_handling(test_hass, llm_config, session_manager):
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Try to process a message with invalid model
         response = None
@@ -537,7 +537,7 @@ async def test_llm_with_complex_tools(
 
     # Mock entity exposure to return False (avoid entity registry calls)
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -566,7 +566,7 @@ async def test_llm_with_complex_tools(
         test_hass.services.async_call = AsyncMock(side_effect=mock_service_call)
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock the get_exposed_entities method to return test entities
             def mock_exposed_entities():
@@ -659,11 +659,11 @@ async def test_tool_execution_with_correct_entity(
     # Mock entity exposure - return True to expose all test entities
     with (
         patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=True,
         ),
         patch(
-            "custom_components.home_agent.tools.ha_control.er.async_get",
+            "custom_components.pepa_sensory_arm.tools.ha_control.er.async_get",
             return_value=mock_entity_registry,
         ),
     ):
@@ -713,7 +713,7 @@ async def test_tool_execution_with_correct_entity(
             mock_llm_server.default_response = "I've completed the requested action."
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock the get_exposed_entities method to return test entities
             def mock_exposed_entities():

@@ -1,7 +1,7 @@
-# Home Agent
+# Pepa Sensory Arm
 
-[![Version](https://img.shields.io/badge/version-0.9.5-blue.svg)](https://github.com/aradlein/hass-agent-llm/releases)
-[![Build Status](https://github.com/aradlein/hass-agent-llm/workflows/CI/badge.svg)](https://github.com/aradlein/hass-agent-llm/actions)
+[![Version](https://img.shields.io/badge/version-0.9.5-blue.svg)](https://github.com/prsws/pepa-sensory-arm/releases)
+[![Build Status](https://github.com/prsws/pepa-sensory-arm/workflows/CI/badge.svg)](https://github.com/prsws/pepa-sensory-arm/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.3.1+-blue.svg)](https://www.home-assistant.io/)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
@@ -14,7 +14,7 @@ A highly customizable Home Assistant custom component that provides intelligent 
 - **Datetime Serialization Fix** - Properly handle datetime objects in tool results and vector DB context provider
 - **Area Lookup Fix** - Use entity/device registry for area resolution instead of state.attributes for more reliable room detection
 
-[View Full Changelog](https://github.com/aradlein/hass-agent-llm/releases)
+[View Full Changelog](https://github.com/prsws/pepa-sensory-arm/releases)
 
 ---
 
@@ -25,7 +25,7 @@ A highly customizable Home Assistant custom component that provides intelligent 
 
 ## Overview
 
-Home Agent extends Home Assistant's native conversation platform to enable natural language control and monitoring of your smart home. It works with any OpenAI-compatible LLM provider, giving you flexibility to use cloud services or run models locally.
+Pepa Sensory Arm extends Home Assistant's native conversation platform to enable natural language control and monitoring of your smart home. It works with any OpenAI-compatible LLM provider, giving you flexibility to use cloud services or run models locally.
 
 **Key Capabilities:**
 - Natural language home control through any OpenAI-compatible LLM
@@ -76,22 +76,22 @@ Home Agent extends Home Assistant's native conversation platform to enable natur
 ### HACS (Recommended)
 
 1. In HACS, go to **Integrations** → **⋮** → **Custom repositories**
-2. Add repository: `https://github.com/aradlein/hass-agent-llm`
+2. Add repository: `https://github.com/prsws/pepa-sensory-arm`
 3. Category: **Integration**
 4. Click **Add**
-5. Search for "Home Agent" in HACS
+5. Search for "Pepa Sensory Arm" in HACS
 6. Click **Install**
 7. Restart Home Assistant
 8. Go to Settings > Devices & Services > Add Integration
-9. Search for "Home Agent" and follow the setup wizard
+9. Search for "Pepa Sensory Arm" and follow the setup wizard
 
 ### Manual Installation
 
 1. Download the latest release from GitHub
-2. Copy the `custom_components/home_agent` directory to your Home Assistant `config/custom_components` folder
+2. Copy the `custom_components/pepa_sensory_arm` directory to your Home Assistant `config/custom_components` folder
 3. Restart Home Assistant
 4. Go to Settings > Devices & Services > Add Integration
-5. Search for "Home Agent" and complete the configuration
+5. Search for "Pepa Sensory Arm" and complete the configuration
 
 **For detailed installation instructions, see [Installation Guide](docs/INSTALLATION.md)**
 
@@ -99,9 +99,9 @@ Home Agent extends Home Assistant's native conversation platform to enable natur
 
 ### 1. Add the Integration
 
-Navigate to Settings > Devices & Services > Add Integration, search for "Home Agent", and configure:
+Navigate to Settings > Devices & Services > Add Integration, search for "Pepa Sensory Arm", and configure:
 
-- **Name**: Friendly name (e.g., "Home Agent")
+- **Name**: Friendly name (e.g., "Pepa Sensory Arm")
 - **LLM Base URL**: Your OpenAI-compatible endpoint
   - OpenAI: `https://api.openai.com/v1`
   - Azure OpenAI: `https://<resource>.openai.azure.com/openai/deployments/<deployment>`
@@ -117,14 +117,14 @@ Navigate to Settings > Devices & Services > Add Integration, search for "Home Ag
 Call the conversation service:
 
 ```yaml
-service: home_agent.process
+service: pepa_sensory_arm.process
 data:
   text: "Turn on the living room lights"
 ```
 
 ### 3. Explore Advanced Configuration
 
-Access Settings > Devices & Services > Home Agent > Configure to:
+Access Settings > Devices & Services > Pepa Sensory Arm > Configure to:
 - Configure context injection mode (direct or vector DB)
 - Enable conversation history
 - Set up custom tools
@@ -176,7 +176,7 @@ automation:
       - platform: time
         at: "07:00:00"
     action:
-      - service: home_agent.process
+      - service: pepa_sensory_arm.process
         data:
           text: "Good morning! Please prepare for the day."
           conversation_id: "morning_routine"
@@ -186,7 +186,7 @@ automation:
 
 ```yaml
 # configuration.yaml
-home_agent:
+pepa_sensory_arm:
   tools_custom:
     - name: check_weather
       description: "Get weather forecast"
@@ -204,7 +204,7 @@ home_agent:
 
 ## Voice Conversation Persistence
 
-Home Agent automatically maintains conversation context across multiple voice interactions, enabling natural multi-turn conversations with your voice assistant.
+Pepa Sensory Arm automatically maintains conversation context across multiple voice interactions, enabling natural multi-turn conversations with your voice assistant.
 
 ### How It Works
 
@@ -248,15 +248,15 @@ Reset your conversation context using the `clear_conversation` service:
 
 ```yaml
 # Clear conversation for current user/device
-service: home_agent.clear_conversation
+service: pepa_sensory_arm.clear_conversation
 
 # Clear conversation for specific device
-service: home_agent.clear_conversation
+service: pepa_sensory_arm.clear_conversation
 data:
   device_id: "kitchen_satellite"
 
 # Clear all conversations
-service: home_agent.clear_conversation
+service: pepa_sensory_arm.clear_conversation
 ```
 
 ### Multi-Device Behavior
@@ -279,7 +279,7 @@ Contributions are welcome! Please:
 
 ## Testing
 
-Home Agent maintains >80% code coverage with comprehensive unit and integration tests:
+Pepa Sensory Arm maintains >80% code coverage with comprehensive unit and integration tests:
 
 ```bash
 # Set up environment
@@ -292,15 +292,15 @@ pip install -r requirements_dev.txt
 pytest tests/unit/ -v
 
 # Run with coverage
-pytest tests/ --cov=custom_components.home_agent --cov-report=html
+pytest tests/ --cov=custom_components.pepa_sensory_arm --cov-report=html
 ```
 
 **Test Status**: 400+ passing tests across core functionality, vector DB, memory system, custom tools, and streaming.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/aradlein/hass-agent-llm/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/aradlein/hass-agent-llm/discussions)
+- **Issues**: [GitHub Issues](https://github.com/prsws/pepa-sensory-arm/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/prsws/pepa-sensory-arm/discussions)
 - **Documentation**: See [docs/](docs/) directory
 
 ## License

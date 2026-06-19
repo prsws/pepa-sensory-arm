@@ -17,8 +17,8 @@ from unittest.mock import patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
@@ -32,7 +32,7 @@ from custom_components.home_agent.const import (
     CONF_STREAMING_ENABLED,
     DEFAULT_SESSION_TIMEOUT,
 )
-from custom_components.home_agent.conversation_session import (
+from custom_components.pepa_sensory_arm.conversation_session import (
     ConversationSessionManager,
 )
 
@@ -122,10 +122,10 @@ async def test_conversation_persistence_across_messages(
     """
     # Create agent with session manager
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         # Mock LLM API calls
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
@@ -183,10 +183,10 @@ async def test_device_isolation(
     4. Each device maintains its own separate conversation
     """
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Message from kitchen device
@@ -257,10 +257,10 @@ async def test_explicit_conversation_id_honored(
     4. Explicit ID takes precedence over session mapping
     """
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Create an initial session for the device
@@ -318,10 +318,10 @@ async def test_session_activity_updates(
     3. Session info reflects recent activity
     """
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Send first message
@@ -395,10 +395,10 @@ async def test_clear_conversation_service(
     4. Session count is correctly reported
     """
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Create sessions for two devices
@@ -483,10 +483,10 @@ async def test_conversation_persistence_in_streaming_mode(
     streaming_config = {**test_config, CONF_STREAMING_ENABLED: True}
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, streaming_config, session_manager)
+        agent = PepaSensoryArm(test_hass, streaming_config, session_manager)
 
         # Mock the LLM call (streaming still uses process_message internally)
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
@@ -550,10 +550,10 @@ async def test_session_timeout_behavior(
     await short_timeout_manager.async_load()
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, short_timeout_manager)
+        agent = PepaSensoryArm(test_hass, test_config, short_timeout_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Create a session
@@ -609,10 +609,10 @@ async def test_user_id_fallback_when_no_device_id(
     3. Preference for device_id over user_id when both are present
     """
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, test_config, session_manager)
+        agent = PepaSensoryArm(test_hass, test_config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             # Message with user_id but no device_id

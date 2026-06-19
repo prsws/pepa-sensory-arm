@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document provides a comprehensive overview of Home Agent's architecture, including component relationships, data flow, and module structure.
+This document provides a comprehensive overview of Pepa Sensory Arm's architecture, including component relationships, data flow, and module structure.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ This document provides a comprehensive overview of Home Agent's architecture, in
 
 ## High-Level Architecture
 
-Home Agent is built as a modular Home Assistant custom component that integrates with the native conversation platform. The architecture follows a layered design with clear separation of concerns.
+Pepa Sensory Arm is built as a modular Home Assistant custom component that integrates with the native conversation platform. The architecture follows a layered design with clear separation of concerns.
 
 ```mermaid
 graph TB
@@ -25,8 +25,8 @@ graph TB
         Services[Services]
     end
 
-    subgraph "Home Agent Core"
-        Agent[HomeAgent<br/>Main Orchestrator]
+    subgraph "Pepa Sensory Arm Core"
+        Agent[PepaSensoryArm<br/>Main Orchestrator]
         ContextMgr[ContextManager<br/>Context Injection]
         ConvHistory[ConversationHistoryManager<br/>History Tracking]
         ToolHandler[ToolHandler<br/>Tool Execution]
@@ -93,7 +93,7 @@ graph TB
 
 ### Key Components
 
-1. **HomeAgent**: Central orchestrator that coordinates all operations
+1. **PepaSensoryArm**: Central orchestrator that coordinates all operations
 2. **ContextManager**: Manages entity context injection strategies
 3. **ConversationHistoryManager**: Tracks conversation history across turns
 4. **ToolHandler**: Registers and executes tools called by the LLM
@@ -110,7 +110,7 @@ This diagram shows the complete flow of a user conversation through the system, 
 sequenceDiagram
     participant User
     participant HA as Home Assistant
-    participant Agent as HomeAgent
+    participant Agent as PepaSensoryArm
     participant Context as ContextManager
     participant Memory as MemoryManager
     participant LLM as LLM Provider
@@ -202,15 +202,15 @@ sequenceDiagram
 
 ## Module Structure
 
-This diagram shows the directory layout and key classes within the Home Agent codebase.
+This diagram shows the directory layout and key classes within the Pepa Sensory Arm codebase.
 
 ```mermaid
 graph TD
-    subgraph "custom_components/home_agent/"
+    subgraph "custom_components/pepa_sensory_arm/"
         Init["__init__.py<br/>• async_setup<br/>• async_setup_entry<br/>• Service registration"]
 
         subgraph "agent/"
-            AgentCore["core.py<br/>HomeAgent<br/>• async_process<br/>• process_message<br/>• _process_conversation"]
+            AgentCore["core.py<br/>PepaSensoryArm<br/>• async_process<br/>• process_message<br/>• _process_conversation"]
             AgentLLM["llm.py<br/>LLMMixin<br/>• _call_llm<br/>• _call_llm_streaming"]
             AgentStream["streaming.py<br/>StreamingMixin<br/>• _async_process_streaming<br/>• _can_stream"]
             AgentMemExt["memory_extraction.py<br/>MemoryExtractionMixin<br/>• _extract_and_store_memories"]
@@ -252,7 +252,7 @@ graph TD
 
         Streaming["streaming.py<br/>OpenAIStreamingHandler<br/>• Stream transformation<br/>• Token usage tracking"]
 
-        ConfigFlowMain["config_flow.py<br/>HomeAgentConfigFlow<br/>• UI configuration<br/>• Options flow"]
+        ConfigFlowMain["config_flow.py<br/>PepaSensoryArmConfigFlow<br/>• UI configuration<br/>• Options flow"]
 
         Const["const.py<br/>• Constants<br/>• Defaults<br/>• Event names"]
 
@@ -305,9 +305,9 @@ graph TD
 ### Directory Organization
 
 ```
-custom_components/home_agent/
+custom_components/pepa_sensory_arm/
 ├── agent/                      # Main agent implementation (mixin-based)
-│   ├── core.py                # HomeAgent orchestrator class
+│   ├── core.py                # PepaSensoryArm orchestrator class
 │   ├── llm.py                 # LLM API communication
 │   ├── streaming.py           # Streaming response support
 │   └── memory_extraction.py   # Memory extraction logic
@@ -341,7 +341,7 @@ custom_components/home_agent/
 
 ## Component Details
 
-### HomeAgent (Core)
+### PepaSensoryArm (Core)
 
 **Purpose**: Central orchestrator for all conversation-related functionality
 
@@ -630,7 +630,7 @@ flowchart TD
 ### Exception Hierarchy
 
 ```
-HomeAgentError (base)
+PepaSensoryArmError (base)
 ├── ContextInjectionError
 ├── ToolExecutionError
 ├── ValidationError
@@ -650,18 +650,18 @@ HomeAgentError (base)
 
 ## Event System
 
-Home Agent emits events for observability and automation:
+Pepa Sensory Arm emits events for observability and automation:
 
-- `home_agent.conversation.started`
-- `home_agent.conversation.finished` (with metrics)
-- `home_agent.context.injected`
-- `home_agent.context.optimized`
-- `home_agent.tool.executed`
-- `home_agent.tool.progress`
-- `home_agent.error`
-- `home_agent.streaming.error`
-- `home_agent.memory.extracted`
-- `home_agent.history.saved`
+- `pepa_sensory_arm.conversation.started`
+- `pepa_sensory_arm.conversation.finished` (with metrics)
+- `pepa_sensory_arm.context.injected`
+- `pepa_sensory_arm.context.optimized`
+- `pepa_sensory_arm.tool.executed`
+- `pepa_sensory_arm.tool.progress`
+- `pepa_sensory_arm.error`
+- `pepa_sensory_arm.streaming.error`
+- `pepa_sensory_arm.memory.extracted`
+- `pepa_sensory_arm.history.saved`
 
 Events can be used for:
 - Monitoring and alerting
@@ -690,7 +690,7 @@ flowchart LR
     ConfigEntry --> Merge[Merge Configs]
     YAMLConfig --> Merge
 
-    Merge --> Agent[HomeAgent]
+    Merge --> Agent[PepaSensoryArm]
     Merge --> Components[Components]
 
     Agent --> Validate[Validate]

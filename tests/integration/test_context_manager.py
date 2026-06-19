@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
     CONF_DEBUG_LOGGING,
@@ -67,7 +67,7 @@ async def test_context_mode_switching_direct(
         CONF_DEBUG_LOGGING: False,
     }
 
-    agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+    agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
     # Verify context manager is using direct mode
     assert agent.context_manager is not None, "Context manager should be initialized"
@@ -145,7 +145,7 @@ async def test_context_mode_switching_vector_db(
         CONF_DEBUG_LOGGING: False,
     }
 
-    agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+    agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
     # Initialize vector DB if needed
     if hasattr(agent, "vector_db_manager") and agent.vector_db_manager:
@@ -207,7 +207,7 @@ async def test_context_format_json(test_hass_with_default_entities, llm_config, 
         CONF_DEBUG_LOGGING: False,
     }
 
-    agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+    agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
     # Get context
     context = await agent.context_manager.get_context(
@@ -256,7 +256,7 @@ async def test_context_format_natural_language(
         CONF_DEBUG_LOGGING: False,
     }
 
-    agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+    agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
     # Get context
     context = await agent.context_manager.get_context(
@@ -307,7 +307,7 @@ async def test_context_format_hybrid(test_hass_with_default_entities, llm_config
         CONF_DEBUG_LOGGING: False,
     }
 
-    agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+    agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
     # Get context
     context = await agent.context_manager.get_context(
@@ -362,13 +362,13 @@ async def test_context_with_no_entities(test_hass, llm_config, session_manager, 
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
         with mock_llm_server.patch_aiohttp():
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Get context with no entities
             context = await agent.context_manager.get_context(

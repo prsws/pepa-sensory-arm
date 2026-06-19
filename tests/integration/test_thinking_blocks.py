@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.components import conversation as ha_conversation
 
-from custom_components.home_agent.agent.core import HomeAgent
-from custom_components.home_agent.const import DOMAIN
+from custom_components.pepa_sensory_arm.agent.core import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import DOMAIN
 
 
 @pytest.fixture
@@ -77,8 +77,8 @@ def basic_config():
 
 @pytest.fixture
 def agent(mock_hass, basic_config, mock_session_manager):
-    """Create a HomeAgent instance for testing."""
-    return HomeAgent(mock_hass, basic_config, mock_session_manager)
+    """Create a PepaSensoryArm instance for testing."""
+    return PepaSensoryArm(mock_hass, basic_config, mock_session_manager)
 
 
 @pytest.fixture
@@ -91,7 +91,7 @@ def user_input():
         language="en",
         device_id=None,
         satellite_id=None,
-        agent_id="home_agent",
+        agent_id="pepa_sensory_arm",
     )
 
 
@@ -274,7 +274,7 @@ class TestThinkingBlocksStreaming:
         """Test that streaming responses filter thinking blocks."""
         # Enable streaming
         streaming_config = {**basic_config, "streaming": {"enabled": True}}
-        agent = HomeAgent(mock_hass, streaming_config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, streaming_config, mock_session_manager)
 
         # Mock streaming response - the streaming handler tests cover this
         # in detail, this just verifies the config flows through correctly

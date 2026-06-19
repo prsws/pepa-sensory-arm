@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_EMIT_EVENTS,
     CONF_EXTERNAL_LLM_API_KEY,
@@ -51,7 +51,7 @@ def test_hass():
 @pytest.fixture
 def session_manager(test_hass):
     """Create a session manager."""
-    from custom_components.home_agent.conversation_session import ConversationSessionManager
+    from custom_components.pepa_sensory_arm.conversation_session import ConversationSessionManager
 
     return ConversationSessionManager(test_hass)
 
@@ -80,10 +80,10 @@ class TestKeepAliveOpenAICompatibility:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock the HTTP session to capture the payload
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
@@ -144,10 +144,10 @@ class TestKeepAliveOpenAICompatibility:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
                 mock_session = MagicMock()
@@ -196,10 +196,10 @@ class TestKeepAliveOpenAICompatibility:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
                 mock_session = MagicMock()
@@ -235,7 +235,7 @@ class TestKeepAliveOpenAICompatibility:
     @pytest.mark.asyncio
     async def test_external_llm_tool_openai_compat(self, test_hass, session_manager):
         """Test that external LLM tool respects OpenAI compatibility."""
-        from custom_components.home_agent.tools.external_llm import ExternalLLMTool
+        from custom_components.pepa_sensory_arm.tools.external_llm import ExternalLLMTool
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "https://api.openai.com/v1",
@@ -296,10 +296,10 @@ class TestKeepAliveEdgeCases:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
                 mock_session = MagicMock()
@@ -342,10 +342,10 @@ class TestKeepAliveEdgeCases:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
                 mock_session = MagicMock()
@@ -389,10 +389,10 @@ class TestKeepAliveEdgeCases:
         }
 
         with patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure:
                 mock_session = MagicMock()

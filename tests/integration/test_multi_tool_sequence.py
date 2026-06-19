@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import State
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
     CONF_LLM_API_KEY,
@@ -132,7 +132,7 @@ async def test_query_then_control_sequence(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -169,7 +169,7 @@ async def test_query_then_control_sequence(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock exposed entities
             def mock_exposed_entities():
@@ -234,7 +234,7 @@ async def test_multiple_queries_in_sequence(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -257,7 +257,7 @@ async def test_multiple_queries_in_sequence(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             def mock_exposed_entities():
                 return [
@@ -320,7 +320,7 @@ async def test_multiple_controls_in_sequence(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -359,7 +359,7 @@ async def test_multiple_controls_in_sequence(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             def mock_exposed_entities():
                 return [
@@ -425,7 +425,7 @@ async def test_conditional_control_based_on_query(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -458,7 +458,7 @@ async def test_conditional_control_based_on_query(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             def mock_exposed_entities():
                 return [
@@ -539,7 +539,7 @@ async def test_tool_sequence_with_errors(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -579,7 +579,7 @@ async def test_tool_sequence_with_errors(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             def mock_exposed_entities():
                 return [
@@ -644,7 +644,7 @@ async def test_max_tool_calls_enforcement(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         setup_entity_states(test_hass, multi_tool_entity_states)
@@ -686,7 +686,7 @@ async def test_max_tool_calls_enforcement(
             )
 
         with maybe_mock_llm(is_using_mock_llm, mock_llm_server):
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             def mock_exposed_entities():
                 return [

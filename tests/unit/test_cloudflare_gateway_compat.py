@@ -17,7 +17,7 @@ Bug 2: aiohttp strips Authorization header on cross-origin redirects.
 
 Bug 3: Poor error messaging for auth-related failures.
     When the API returns HTTP 400 with "Missing Authorization header" in
-    the body, the error is raised as a generic HomeAgentError with the raw
+    the body, the error is raised as a generic PepaSensoryArmError with the raw
     text. A helpful hint about checking API key configuration and proxy
     redirect behavior would make debugging much easier.
 """
@@ -27,23 +27,23 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp import ClientSession
 
-from custom_components.home_agent.agent.llm import LLMMixin
-from custom_components.home_agent.agent.streaming import StreamingMixin
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent.llm import LLMMixin
+from custom_components.pepa_sensory_arm.agent.streaming import StreamingMixin
+from custom_components.pepa_sensory_arm.const import (
     CONF_LLM_API_KEY,
     CONF_LLM_BASE_URL,
     CONF_LLM_MODEL,
 )
-from custom_components.home_agent.exceptions import HomeAgentError
+from custom_components.pepa_sensory_arm.exceptions import PepaSensoryArmError
 
 # Patch path for the lazy Template import inside render_template_value
 _TEMPLATE_PATCH = "homeassistant.helpers.template.Template"
 
 # Patch path for render_template_value inside the streaming module
-_RENDER_IN_STREAMING = "custom_components.home_agent.agent.streaming.render_template_value"
+_RENDER_IN_STREAMING = "custom_components.pepa_sensory_arm.agent.streaming.render_template_value"
 
 # Patch path for render_template_value inside the llm module
-_RENDER_IN_LLM = "custom_components.home_agent.helpers.render_template_value"
+_RENDER_IN_LLM = "custom_components.pepa_sensory_arm.helpers.render_template_value"
 
 
 # ---------------------------------------------------------------------------
@@ -264,7 +264,9 @@ class TestRedirectAuthPreservation:
         agent = _MockLLMAgent(config)
 
         # Capture how aiohttp.ClientSession is constructed
-        with patch("custom_components.home_agent.agent.llm.aiohttp.ClientSession") as mock_cls:
+        with patch(
+            "custom_components.pepa_sensory_arm.agent.llm.aiohttp.ClientSession"
+        ) as mock_cls:
             mock_session_inst = MagicMock(spec=ClientSession)
             mock_session_inst.closed = False
 
@@ -359,7 +361,7 @@ class TestAuthErrorMessaging:
 
     When a gateway proxy strips the Authorization header (due to a
     cross-origin redirect) and the upstream API returns an error, the
-    current code raises a generic HomeAgentError with the raw error text.
+    current code raises a generic PepaSensoryArmError with the raw error text.
     A better error message would hint at common causes like:
     - API key not configured or template not rendering
     - Proxy/gateway stripping Authorization header on redirect
@@ -371,7 +373,7 @@ class TestAuthErrorMessaging:
 
         This test FAILS with the current code because line 262 of llm.py
         raises:
-            HomeAgentError(f"LLM API returned status {response.status}: {error_text}")
+            PepaSensoryArmError(f"LLM API returned status {response.status}: {error_text}")
         which is a raw error dump with no actionable guidance.
 
         The error message should include a hint about checking:
@@ -390,7 +392,7 @@ class TestAuthErrorMessaging:
         mock_response = _make_error_response(400, error_body)
         agent._session = _make_mock_session(mock_response)
 
-        with pytest.raises(HomeAgentError) as exc_info:
+        with pytest.raises(PepaSensoryArmError) as exc_info:
             await agent._call_llm([{"role": "user", "content": "test"}])
 
         error_msg = str(exc_info.value).lower()
@@ -422,7 +424,7 @@ class TestAuthErrorMessaging:
         """A 401 response should raise AuthenticationError with helpful text.
 
         This test verifies that a 401 raises AuthenticationError (not just
-        HomeAgentError) and includes guidance about checking the API key
+        PepaSensoryArmError) and includes guidance about checking the API key
         and configuration.
 
         Note: The current code does raise AuthenticationError for 401, so
@@ -444,7 +446,7 @@ class TestAuthErrorMessaging:
         )
         agent._session = _make_mock_session(mock_response)
 
-        with pytest.raises(HomeAgentError) as exc_info:
+        with pytest.raises(PepaSensoryArmError) as exc_info:
             await agent._call_llm([{"role": "user", "content": "test"}])
 
         error_msg = str(exc_info.value).lower()

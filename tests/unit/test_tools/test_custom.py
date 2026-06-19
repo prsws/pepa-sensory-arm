@@ -4,9 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from custom_components.home_agent.const import CUSTOM_TOOL_HANDLER_SERVICE
-from custom_components.home_agent.exceptions import ValidationError
-from custom_components.home_agent.tools.custom import (
+from custom_components.pepa_sensory_arm.const import CUSTOM_TOOL_HANDLER_SERVICE
+from custom_components.pepa_sensory_arm.exceptions import ValidationError
+from custom_components.pepa_sensory_arm.tools.custom import (
     CustomToolHandler,
     RestCustomTool,
     ServiceCustomTool,

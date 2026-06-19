@@ -1,6 +1,6 @@
 """Integration tests for edge cases and stress testing.
 
-These tests verify that the Home Agent handles edge cases correctly:
+These tests verify that the Pepa Sensory Arm handles edge cases correctly:
 - Unicode and internationalization (RTL languages, emojis, mixed scripts)
 - Large payloads (long messages, large context, large history)
 - Concurrency (simultaneous conversations, concurrent memory access)
@@ -15,8 +15,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant, State
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
@@ -76,10 +76,10 @@ async def test_rtl_language_arabic(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Arabic text: "Turn on the living room lights"
         arabic_input = "شغل أضواء غرفة المعيشة"
@@ -143,10 +143,10 @@ async def test_emoji_in_user_input(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # User input with emoji
         emoji_input = "🏠 Turn on the lights in the living room 💡"
@@ -206,10 +206,10 @@ async def test_mixed_script_text(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mixed English and Chinese
         mixed_input = "请 turn on the living room 灯光 please"
@@ -269,10 +269,10 @@ async def test_zero_width_characters(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Input with zero-width characters
         zwj = "\u200d"  # Zero-width joiner
@@ -335,10 +335,10 @@ async def test_very_long_user_message(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Create a very long message (>10KB)
         long_message = (
@@ -412,13 +412,13 @@ async def test_large_context_many_entities(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         # Setup test states
         test_hass.states.async_all = MagicMock(return_value=large_entity_states)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
             response = await agent.process_message(
@@ -475,10 +475,10 @@ async def test_large_conversation_history(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         conversation_id = "test_large_history"
 
@@ -543,10 +543,10 @@ async def test_concurrent_conversations(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Create multiple concurrent conversations
         num_conversations = 10
@@ -622,10 +622,10 @@ async def test_malformed_utf8_sequences(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Try to create malformed UTF-8 (Python 3 handles this gracefully)
         # Use replacement character to simulate malformed input
@@ -685,10 +685,10 @@ async def test_hebrew_rtl_text(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Hebrew text: "Turn on the lights"
         hebrew_input = "הדלק את האורות"

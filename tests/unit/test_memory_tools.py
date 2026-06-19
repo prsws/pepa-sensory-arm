@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from custom_components.home_agent.exceptions import ToolExecutionError
-from custom_components.home_agent.tools.memory_tools import (
+from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+from custom_components.pepa_sensory_arm.tools.memory_tools import (
     TOOL_RECALL_MEMORY,
     TOOL_STORE_MEMORY,
     RecallMemoryTool,

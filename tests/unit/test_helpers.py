@@ -10,8 +10,8 @@ import pytest
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import State
 
-from custom_components.home_agent.exceptions import ValidationError
-from custom_components.home_agent.helpers import (
+from custom_components.pepa_sensory_arm.exceptions import ValidationError
+from custom_components.pepa_sensory_arm.helpers import (
     estimate_tokens,
     format_duration,
     format_entity_state,

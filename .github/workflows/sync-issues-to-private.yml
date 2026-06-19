@@ -16,7 +16,7 @@ jobs:
           PUBLIC_ISSUE_TITLE: ${{ github.event.issue.title }}
           PUBLIC_ISSUE_URL: ${{ github.event.issue.html_url }}
           PUBLIC_REPO: ${{ github.repository }}
-          PRIVATE_REPO: aradlein/home-agent
+          PRIVATE_REPO: prsws/pepa-sensory-arm
         run: |
           # Escape quotes and newlines in issue body for JSON
           ISSUE_BODY=$(cat <<'EOF' | jq -Rs .

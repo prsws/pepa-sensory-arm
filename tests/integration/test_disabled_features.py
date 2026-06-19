@@ -12,8 +12,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_EMIT_EVENTS,
     CONF_EXTERNAL_LLM_ENABLED,
@@ -47,7 +47,9 @@ class TestDisabledFeatures:
     @pytest.fixture
     async def mock_session_manager(self, test_hass):
         """Create a mock ConversationSessionManager for testing."""
-        from custom_components.home_agent.conversation_session import ConversationSessionManager
+        from custom_components.pepa_sensory_arm.conversation_session import (
+            ConversationSessionManager,
+        )
 
         manager = ConversationSessionManager(test_hass)
         await manager.async_load()
@@ -94,7 +96,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory manager is None
         assert agent.memory_manager is None, "MemoryManager should be None when memory is disabled"
@@ -124,7 +126,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory manager is None
         assert agent.memory_manager is None
@@ -161,7 +163,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_EXTRACTION_ENABLED: False,  # But extraction disabled
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock the extraction method to track calls - use simple async function
         call_count = [0]
@@ -202,7 +204,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_EXTRACTION_ENABLED: True,  # Extraction "enabled" but won't work
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock the extraction method to track calls
         call_count = [0]
@@ -243,7 +245,7 @@ class TestDisabledFeatures:
             CONF_HISTORY_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock add_message to verify it's NOT called - use simple MagicMock (sync method)
         with patch.object(
@@ -277,7 +279,7 @@ class TestDisabledFeatures:
             CONF_HISTORY_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Track LLM calls to verify message structure
         llm_calls = []
@@ -322,7 +324,7 @@ class TestDisabledFeatures:
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify context manager uses DirectContextProvider
         # This is determined at initialization in ContextManager
@@ -330,7 +332,7 @@ class TestDisabledFeatures:
 
         # Mock VectorDBContextProvider to ensure it's NOT used
         with patch(
-            "custom_components.home_agent.context_providers.vector_db.VectorDBContextProvider"
+            "custom_components.pepa_sensory_arm.context_providers.vector_db.VectorDBContextProvider"
         ) as mock_vector_provider:
             with patch.object(agent, "_call_llm", return_value=mock_llm_response):
                 response = await agent.process_message(
@@ -360,10 +362,10 @@ class TestDisabledFeatures:
             CONF_EXTERNAL_LLM_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock ExternalLLMTool to verify it's NOT instantiated
-        with patch("custom_components.home_agent.agent.core.ExternalLLMTool") as mock_ext_llm:
+        with patch("custom_components.pepa_sensory_arm.agent.core.ExternalLLMTool") as mock_ext_llm:
             # Force tool registration
             agent._ensure_tools_registered()
 
@@ -386,7 +388,7 @@ class TestDisabledFeatures:
         - Extraction method detects this and exits early
         - No external LLM tool calls occur
         """
-        from custom_components.home_agent.const import CONF_MEMORY_EXTRACTION_LLM
+        from custom_components.pepa_sensory_arm.const import CONF_MEMORY_EXTRACTION_LLM
 
         config = {
             **base_config,
@@ -396,7 +398,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_EXTRACTION_LLM: "external",  # Explicitly set to external
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Set up a mock memory manager
         mock_memory_manager = MagicMock()
@@ -458,7 +460,7 @@ class TestDisabledFeatures:
             CONF_STREAMING_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory is disabled
         assert agent.memory_manager is None
@@ -499,7 +501,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_ENABLED: False,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock set_memory_provider to track calls - use simple MagicMock (it's a sync method)
         with patch.object(
@@ -526,7 +528,7 @@ class TestDisabledFeatures:
             CONF_STREAMING_ENABLED: True,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Mock add_message to verify it's NOT called - use simple MagicMock (sync method)
         with patch.object(
@@ -565,7 +567,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_EXTRACTION_ENABLED: True,
         }
 
-        agent1 = HomeAgent(mock_hass, config1, mock_session_manager)
+        agent1 = PepaSensoryArm(mock_hass, config1, mock_session_manager)
 
         # Mock the extraction LLM call to track if it's made - use call counter
         call_count1 = [0]
@@ -598,7 +600,7 @@ class TestDisabledFeatures:
             CONF_MEMORY_EXTRACTION_ENABLED: True,
         }
 
-        agent2 = HomeAgent(mock_hass, config2, mock_session_manager)
+        agent2 = PepaSensoryArm(mock_hass, config2, mock_session_manager)
         assert agent2.memory_manager is None  # Not provided in fixture
 
         call_count2 = [0]
@@ -639,7 +641,7 @@ class TestDisabledFeatures:
             CONF_EXTERNAL_LLM_ENABLED: False,  # External LLM disabled
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
         agent._ensure_tools_registered()
 
         # Verify memory is disabled
@@ -684,7 +686,7 @@ class TestDisabledFeatures:
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
         }
 
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Track context manager calls
         context_calls = []

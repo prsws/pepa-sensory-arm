@@ -5,7 +5,7 @@ This test suite validates the complete custom tool integration flow:
 - REST handler execution with real HTTP calls (mocked)
 - Template rendering with parameters
 - Error handling and validation
-- Integration with Home Agent's tool system
+- Integration with Pepa Sensory Arm's tool system
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,8 +14,8 @@ import aiohttp
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_EMIT_EVENTS,
     CONF_LLM_API_KEY,
     CONF_LLM_BASE_URL,
@@ -24,7 +24,7 @@ from custom_components.home_agent.const import (
     CONF_TOOLS_MAX_CALLS_PER_TURN,
     CONF_TOOLS_TIMEOUT,
 )
-from custom_components.home_agent.tools.custom import RestCustomTool, ServiceCustomTool
+from custom_components.pepa_sensory_arm.tools.custom import RestCustomTool, ServiceCustomTool
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -114,10 +114,10 @@ async def test_custom_tools_registration(
     mock_hass_for_custom_tools, custom_tools_config, session_manager
 ):
     """Test that custom tools are registered from configuration."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
 
         # Trigger lazy tool registration
         agent._ensure_tools_registered()
@@ -134,10 +134,10 @@ async def test_custom_tool_has_correct_properties(
     mock_hass_for_custom_tools, custom_tools_config, session_manager
 ):
     """Test that registered custom tools have correct properties."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get the weather tool
@@ -155,10 +155,10 @@ async def test_custom_tool_appears_in_llm_tools_list(
     session_manager, mock_hass_for_custom_tools, custom_tools_config
 ):
     """Test that custom tools appear in the tools list for LLM."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get tools formatted for LLM
@@ -176,10 +176,10 @@ async def test_custom_rest_tool_execution_success(
     mock_hass_for_custom_tools, custom_tools_config, session_manager
 ):
     """Test successful execution of a custom REST tool."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get the tool and mock its _make_request method
@@ -208,10 +208,10 @@ async def test_custom_rest_tool_execution_with_post(
     session_manager, mock_hass_for_custom_tools, custom_tools_config
 ):
     """Test POST request execution of a custom REST tool."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get the tool and mock its _make_request method
@@ -252,11 +252,13 @@ async def test_custom_tool_registration_with_validation_error(
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
         # Should not raise exception - just log error and continue
-        agent = HomeAgent(mock_hass_for_custom_tools, config_with_invalid_tool, session_manager)
+        agent = PepaSensoryArm(
+            mock_hass_for_custom_tools, config_with_invalid_tool, session_manager
+        )
         agent._ensure_tools_registered()
 
         # Invalid tool should not be registered
@@ -269,10 +271,10 @@ async def test_multiple_custom_tools_registration(
     mock_hass_for_custom_tools, custom_tools_config, session_manager
 ):
     """Test that multiple custom tools can be registered simultaneously."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Verify both custom tools are registered alongside core tools
@@ -295,10 +297,10 @@ async def test_custom_tool_error_propagation(
     mock_hass_for_custom_tools, custom_tools_config, session_manager
 ):
     """Test that custom tool errors are properly propagated."""
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, custom_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, custom_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get the tool and mock its _make_request method to raise an error
@@ -382,10 +384,10 @@ async def test_service_tools_registration(
     # Mock has_service to return True for all services
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
 
         # Trigger lazy tool registration
         agent._ensure_tools_registered()
@@ -405,10 +407,10 @@ async def test_service_tool_has_correct_properties(
     """Test that registered service tools have correct properties."""
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get the automation trigger tool
@@ -428,10 +430,10 @@ async def test_service_tool_appears_in_llm_tools_list(
     """Test that service tools appear in the tools list for LLM."""
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Get tools formatted for LLM
@@ -453,10 +455,10 @@ async def test_service_tool_execution_success(
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
     mock_hass_for_custom_tools.services.async_call = AsyncMock(return_value=None)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute the service tool
@@ -488,14 +490,16 @@ async def test_service_tool_execution_with_parameters(
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
     mock_hass_for_custom_tools.services.async_call = AsyncMock(return_value=None)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute the service tool with parameters
-        with patch("custom_components.home_agent.tools.custom.Template") as mock_template_class:
+        with patch(
+            "custom_components.pepa_sensory_arm.tools.custom.Template"
+        ) as mock_template_class:
             mock_template = MagicMock()
             mock_template.async_render = MagicMock(
                 side_effect=lambda x: (
@@ -528,10 +532,10 @@ async def test_service_tool_execution_with_target(
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
     mock_hass_for_custom_tools.services.async_call = AsyncMock(return_value=None)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute the service tool
@@ -560,10 +564,10 @@ async def test_service_tool_error_propagation(
     error._message = "Service automation.trigger not found"
     mock_hass_for_custom_tools.services.async_call = AsyncMock(side_effect=error)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, service_tools_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, service_tools_config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute the service tool - should return error, not raise
@@ -613,10 +617,10 @@ async def test_mixed_rest_and_service_tools(mock_hass_for_custom_tools, session_
 
     mock_hass_for_custom_tools.services.has_service = MagicMock(return_value=True)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_custom_tools, mixed_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_custom_tools, mixed_config, session_manager)
         agent._ensure_tools_registered()
 
         # Verify both types of tools are registered
@@ -682,8 +686,8 @@ async def test_tool_timeout_is_triggered_when_execution_exceeds_limit(
     This test verifies that when a tool takes longer than the configured timeout,
     a timeout error is raised and properly handled.
     """
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Create a tool handler with a 1 second timeout
     tool_handler = ToolHandler(
@@ -717,8 +721,8 @@ async def test_tool_timeout_does_not_crash_agent(mock_hass_for_custom_tools, ses
     - Recording failure metrics
     - Raising a proper ToolExecutionError (not crashing)
     """
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Create a tool handler with a 1 second timeout
     tool_handler = ToolHandler(
@@ -763,8 +767,8 @@ async def test_tool_timeout_returns_proper_error_message(
     - Includes the timeout duration
     - Is informative for debugging
     """
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Set a 2 second timeout for clarity in error message
     tool_handler = ToolHandler(
@@ -800,9 +804,9 @@ async def test_tool_timeout_fires_proper_events(mock_hass_for_custom_tools, sess
     - A "failed" event is fired with timeout information
     - The failed event includes error_type: "TimeoutError"
     """
-    from custom_components.home_agent.const import EVENT_TOOL_PROGRESS
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.const import EVENT_TOOL_PROGRESS
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Track events
     events_fired = []
@@ -862,8 +866,8 @@ async def test_agent_continues_working_after_tool_timeout(
     - Subsequent tool calls can execute successfully
     - Metrics are properly tracked across timeout and success
     """
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Create tool handler with 1 second timeout
     tool_handler = ToolHandler(
@@ -918,7 +922,7 @@ async def test_tool_completes_successfully_within_timeout(
     This test verifies that the timeout mechanism doesn't interfere with
     normal tool execution when the tool completes quickly.
     """
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Configure a reasonable timeout
     tool_handler = ToolHandler(
@@ -961,8 +965,8 @@ async def test_different_timeout_configurations(mock_hass_for_custom_tools, sess
     - The timeout is actually applied during execution
     - Different timeout values work as expected
     """
-    from custom_components.home_agent.exceptions import ToolExecutionError
-    from custom_components.home_agent.tool_handler import ToolHandler
+    from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError
+    from custom_components.pepa_sensory_arm.tool_handler import ToolHandler
 
     # Test with a very short timeout (0.5 seconds)
     tool_handler = ToolHandler(

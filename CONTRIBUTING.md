@@ -1,10 +1,10 @@
-# Contributing to Home Agent
+# Contributing to Pepa Sensory Arm
 
-Thank you for your interest in contributing to Home Agent. This guide covers everything you need to get started.
+Thank you for your interest in contributing to Pepa Sensory Arm. This guide covers everything you need to get started.
 
 ## Getting Started
 
-1. Fork the repository at [github.com/aradlein/hass-agent-llm](https://github.com/aradlein/hass-agent-llm)
+1. Fork the repository at [github.com/prsws/pepa-sensory-arm](https://github.com/prsws/pepa-sensory-arm)
 2. Clone your fork locally:
    ```bash
    git clone https://github.com/<your-username>/hass-agent-llm.git
@@ -68,7 +68,7 @@ pytest tests/unit/ tests/integration/ \
   --ignore=tests/integration/test_real_memory.py \
   --ignore=tests/integration/test_real_vector_db.py \
   --ignore=tests/integration/test_real_ttft_metrics.py \
-  --cov=custom_components.home_agent
+  --cov=custom_components.pepa_sensory_arm
 ```
 
 ## Test Requirements for Pull Requests
@@ -144,4 +144,4 @@ The `main` branch has the following protections:
 
 ## Questions?
 
-Open a [Discussion](https://github.com/aradlein/hass-agent-llm/discussions) or check existing [Issues](https://github.com/aradlein/hass-agent-llm/issues).
+Open a [Discussion](https://github.com/prsws/pepa-sensory-arm/discussions) or check existing [Issues](https://github.com/prsws/pepa-sensory-arm/issues).

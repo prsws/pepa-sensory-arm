@@ -16,8 +16,8 @@ from unittest.mock import Mock
 import pytest
 import voluptuous as vol
 
-from custom_components.home_agent.config_flow import HomeAgentConfigFlow
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.config_flow import PepaSensoryArmConfigFlow
+from custom_components.pepa_sensory_arm.const import (
     CONF_EXTERNAL_LLM_MAX_TOKENS,
     CONF_EXTERNAL_LLM_TEMPERATURE,
     CONF_HISTORY_MAX_MESSAGES,
@@ -67,7 +67,7 @@ class TestLLMTemperatureBoundaries:
             assert validated[CONF_LLM_TEMPERATURE] == temperature
 
             # Also test through config flow validation
-            config_flow = HomeAgentConfigFlow()
+            config_flow = PepaSensoryArmConfigFlow()
             config_flow.hass = Mock()
             user_input = {
                 "name": "Test Agent",
@@ -87,7 +87,7 @@ class TestLLMTemperatureBoundaries:
     async def test_llm_temperature_boundary_behavior_minimum(self):
         """Test that minimum temperature (0.0) produces deterministic behavior."""
         # At temperature 0.0, the model should be most deterministic
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -106,7 +106,7 @@ class TestLLMTemperatureBoundaries:
     async def test_llm_temperature_boundary_behavior_maximum(self):
         """Test that maximum temperature (2.0) is accepted for creative responses."""
         # At temperature 2.0, the model should be most creative/random
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -160,7 +160,7 @@ class TestLLMMaxTokensBoundaries:
             assert validated[CONF_LLM_MAX_TOKENS] == max_tokens
 
             # Also test through config flow
-            config_flow = HomeAgentConfigFlow()
+            config_flow = PepaSensoryArmConfigFlow()
             config_flow.hass = Mock()
             user_input = {
                 "name": "Test Agent",
@@ -179,7 +179,7 @@ class TestLLMMaxTokensBoundaries:
 
     async def test_llm_max_tokens_minimum_limits_response_length(self):
         """Test that minimum max_tokens (1) correctly limits response."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -197,7 +197,7 @@ class TestLLMMaxTokensBoundaries:
 
     async def test_llm_max_tokens_maximum_allows_long_responses(self):
         """Test that maximum max_tokens (100000) allows very long responses."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -631,7 +631,7 @@ class TestBoundaryValueCombinations:
 
     async def test_all_minimum_values(self):
         """Test that all minimum boundary values work together."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -650,7 +650,7 @@ class TestBoundaryValueCombinations:
 
     async def test_all_maximum_values(self):
         """Test that all maximum boundary values work together."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -669,7 +669,7 @@ class TestBoundaryValueCombinations:
 
     async def test_mixed_boundary_values(self):
         """Test mix of minimum and maximum values."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {
@@ -692,7 +692,7 @@ class TestEdgeCaseValues:
 
     async def test_float_coercion_from_string(self):
         """Test that string values are properly coerced to float."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         # Note: In actual Home Assistant UI, these come as proper types,
@@ -716,7 +716,7 @@ class TestEdgeCaseValues:
     )
     async def test_precise_float_values(self, temperature):
         """Test that precise float values within range are accepted."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
         config_flow.hass = Mock()
 
         user_input = {

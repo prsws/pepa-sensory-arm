@@ -17,8 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
     CONF_DEBUG_LOGGING,
@@ -56,7 +56,7 @@ from custom_components.home_agent.const import (
     EMBEDDING_PROVIDER_OLLAMA,
     EMBEDDING_PROVIDER_OPENAI,
 )
-from custom_components.home_agent.vector_db_manager import VectorDBManager
+from custom_components.pepa_sensory_arm.vector_db_manager import VectorDBManager
 
 # =============================================================================
 # Proxy Headers Tests
@@ -99,7 +99,7 @@ async def test_proxy_headers_sent(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -112,7 +112,7 @@ async def test_proxy_headers_sent(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture headers
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -187,7 +187,7 @@ async def test_no_proxy_headers_no_custom_header(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -200,7 +200,7 @@ async def test_no_proxy_headers_no_custom_header(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture headers
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -276,11 +276,11 @@ async def test_llm_temperature_in_payload(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -344,11 +344,11 @@ async def test_llm_max_tokens_in_payload(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -415,11 +415,11 @@ async def test_llm_keep_alive_in_payload(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -483,11 +483,11 @@ async def test_llm_top_p_in_payload(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -551,11 +551,11 @@ async def test_llm_payload_all_parameters_together(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -630,7 +630,7 @@ async def test_llm_streaming_payload_parameters(
 
     Note: keep_alive is only sent to Ollama backends, so we use an Ollama URL.
     """
-    from custom_components.home_agent.const import CONF_STREAMING_ENABLED
+    from custom_components.pepa_sensory_arm.const import CONF_STREAMING_ENABLED
 
     config = {
         CONF_LLM_BASE_URL: "http://localhost:11434/v1",  # Use Ollama URL so keep_alive is included
@@ -647,11 +647,11 @@ async def test_llm_streaming_payload_parameters(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the HTTP session to capture the streaming payload
         with patch.object(agent, "_ensure_session", new_callable=AsyncMock) as mock_ensure_session:
@@ -766,7 +766,7 @@ async def test_context_format_variations(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -779,7 +779,7 @@ async def test_context_format_variations(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Get context
         context = await agent.context_manager.get_context(
@@ -850,7 +850,7 @@ async def test_context_format_json_baseline(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -863,7 +863,7 @@ async def test_context_format_json_baseline(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Get context
         context = await agent.context_manager.get_context(
@@ -914,7 +914,7 @@ async def test_embedding_provider_openai(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=True,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -929,7 +929,7 @@ async def test_embedding_provider_openai(
 
         # Mock ChromaDB client to avoid needing real ChromaDB
         with patch(
-            "custom_components.home_agent.vector_db_manager.chromadb.HttpClient"
+            "custom_components.pepa_sensory_arm.vector_db_manager.chromadb.HttpClient"
         ) as mock_chromadb:
             mock_collection = MagicMock()
             mock_client = MagicMock()
@@ -993,7 +993,7 @@ async def test_openai_embedding_with_custom_base_url(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=True,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1008,7 +1008,7 @@ async def test_openai_embedding_with_custom_base_url(
 
         # Mock ChromaDB client to avoid needing real ChromaDB
         with patch(
-            "custom_components.home_agent.vector_db_manager.chromadb.HttpClient"
+            "custom_components.pepa_sensory_arm.vector_db_manager.chromadb.HttpClient"
         ) as mock_chromadb:
             mock_collection = MagicMock()
             mock_client = MagicMock()
@@ -1089,7 +1089,7 @@ async def test_embedding_provider_ollama(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=True,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1104,7 +1104,7 @@ async def test_embedding_provider_ollama(
 
         # Mock ChromaDB client to avoid needing real ChromaDB
         with patch(
-            "custom_components.home_agent.vector_db_manager.chromadb.HttpClient"
+            "custom_components.pepa_sensory_arm.vector_db_manager.chromadb.HttpClient"
         ) as mock_chromadb:
             mock_collection = MagicMock()
             mock_client = MagicMock()
@@ -1168,7 +1168,7 @@ async def test_memory_extraction_llm_local(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1181,7 +1181,7 @@ async def test_memory_extraction_llm_local(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
         mock_memory_manager = MagicMock()
@@ -1259,7 +1259,7 @@ async def test_memory_extraction_llm_external(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1272,7 +1272,7 @@ async def test_memory_extraction_llm_external(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
         mock_memory_manager = MagicMock()
@@ -1380,7 +1380,7 @@ async def test_multiple_alternative_configs_together(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=True,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1395,7 +1395,7 @@ async def test_multiple_alternative_configs_together(
 
         # Mock ChromaDB client to avoid needing real ChromaDB
         with patch(
-            "custom_components.home_agent.context_providers.vector_db.chromadb.HttpClient"
+            "custom_components.pepa_sensory_arm.context_providers.vector_db.chromadb.HttpClient"
         ) as mock_chromadb:
             mock_collection = MagicMock()
             mock_collection.query.return_value = {
@@ -1407,7 +1407,7 @@ async def test_multiple_alternative_configs_together(
             mock_client.get_or_create_collection.return_value = mock_collection
             mock_chromadb.return_value = mock_client
 
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Mock the embedding call for vector DB context provider
             with patch.object(
@@ -1467,7 +1467,7 @@ async def test_events_fire_when_enabled(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1480,7 +1480,7 @@ async def test_events_fire_when_enabled(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Track events fired
         events_fired = []
@@ -1522,7 +1522,7 @@ async def test_events_fire_when_enabled(
             assert len(events_fired) > 0, "Events should be fired when emit_events=True"
 
             # Check for conversation started event
-            from custom_components.home_agent.const import EVENT_CONVERSATION_STARTED
+            from custom_components.pepa_sensory_arm.const import EVENT_CONVERSATION_STARTED
 
             assert (
                 EVENT_CONVERSATION_STARTED in event_names
@@ -1534,7 +1534,7 @@ async def test_events_fire_when_enabled(
             assert "timestamp" in started_event[1]
 
             # Check for conversation finished event
-            from custom_components.home_agent.const import EVENT_CONVERSATION_FINISHED
+            from custom_components.pepa_sensory_arm.const import EVENT_CONVERSATION_FINISHED
 
             assert (
                 EVENT_CONVERSATION_FINISHED in event_names
@@ -1562,7 +1562,7 @@ async def test_events_do_not_fire_when_disabled(
     This test verifies:
     1. When emit_events=False, our custom events are NOT fired
     2. Only Home Assistant core events (if any) should fire
-    3. No home_agent.* events are emitted
+    3. No pepa_sensory_arm.* events are emitted
     4. Functionality still works without events
     """
     config = {
@@ -1580,7 +1580,7 @@ async def test_events_do_not_fire_when_disabled(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1593,7 +1593,7 @@ async def test_events_do_not_fire_when_disabled(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Track events fired
         events_fired = []
@@ -1632,13 +1632,13 @@ async def test_events_do_not_fire_when_disabled(
             # Verify we got a response (functionality works)
             assert response == "The light is on.", "Agent should still work with events disabled"
 
-            # Filter for our custom events (home_agent.*)
-            from custom_components.home_agent.const import DOMAIN
+            # Filter for our custom events (pepa_sensory_arm.*)
+            from custom_components.pepa_sensory_arm.const import DOMAIN
 
             our_events = [e for e in events_fired if e[0].startswith(f"{DOMAIN}.")]
 
             assert len(our_events) == 0, (
-                "No home_agent.* events should fire when "
+                "No pepa_sensory_arm.* events should fire when "
                 f"emit_events=False, got: {[e[0] for e in our_events]}"
             )
 
@@ -1676,7 +1676,7 @@ async def test_emit_events_runtime_check_in_tool_handler(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1689,7 +1689,7 @@ async def test_emit_events_runtime_check_in_tool_handler(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config_disabled, session_manager)
+        agent = PepaSensoryArm(test_hass, config_disabled, session_manager)
 
         # Verify ToolHandler has emit_events set correctly
         assert (
@@ -1709,7 +1709,7 @@ async def test_emit_events_runtime_check_in_tool_handler(
 
         try:
             # Register a test tool and execute it
-            from custom_components.home_agent.tools import HomeAssistantQueryTool
+            from custom_components.pepa_sensory_arm.tools import HomeAssistantQueryTool
 
             # Create the tool with exposed entities
             exposed_entities = {"light.living_room"}
@@ -1722,7 +1722,10 @@ async def test_emit_events_runtime_check_in_tool_handler(
             )
 
             # Verify NO tool events were fired
-            from custom_components.home_agent.const import EVENT_TOOL_EXECUTED, EVENT_TOOL_PROGRESS
+            from custom_components.pepa_sensory_arm.const import (
+                EVENT_TOOL_EXECUTED,
+                EVENT_TOOL_PROGRESS,
+            )
 
             tool_events = [
                 e for e in events_fired if e[0] in [EVENT_TOOL_EXECUTED, EVENT_TOOL_PROGRESS]
@@ -1765,7 +1768,7 @@ async def test_emit_events_dynamic_change(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1778,7 +1781,7 @@ async def test_emit_events_dynamic_change(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Track events fired
         events_fired = []
@@ -1844,7 +1847,7 @@ async def test_emit_events_dynamic_change(
                     conversation_id="test_dynamic_2",
                 )
 
-            from custom_components.home_agent.const import DOMAIN
+            from custom_components.pepa_sensory_arm.const import DOMAIN
 
             our_events = [e for e in events_fired if e[0].startswith(f"{DOMAIN}.")]
 
@@ -1914,7 +1917,7 @@ async def test_memory_extraction_event_respects_emit_events(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         test_hass.states.async_all = MagicMock(return_value=sample_entity_states)
@@ -1927,7 +1930,7 @@ async def test_memory_extraction_event_respects_emit_events(
 
         test_hass.states.get = MagicMock(side_effect=mock_get_state)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
         mock_memory_manager = MagicMock()
@@ -1984,7 +1987,7 @@ async def test_memory_extraction_event_respects_emit_events(
                 )
 
             # Verify EVENT_MEMORY_EXTRACTED was fired
-            from custom_components.home_agent.const import EVENT_MEMORY_EXTRACTED
+            from custom_components.pepa_sensory_arm.const import EVENT_MEMORY_EXTRACTED
 
             memory_events = [e for e in events_fired if e[0] == EVENT_MEMORY_EXTRACTED]
 

@@ -22,8 +22,8 @@ from homeassistant.components import conversation
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import llm
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_HISTORY_ENABLED,
     CONF_LLM_API_KEY,
     CONF_LLM_BASE_URL,
@@ -268,10 +268,10 @@ async def test_end_to_end_streaming(
     - Final response is returned correctly
     """
     # Patch async_should_expose to avoid entity exposure issues
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create mock streaming response
         stream_lines = create_text_stream_chunked(["Hello", " there", ", how can I help?"])
@@ -351,10 +351,10 @@ async def test_streaming_with_tool_calls(
     - Tool calls are executed by ChatLog
     - Response continues after tool execution
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create streaming response with tool call
         stream_lines = create_text_then_tool_stream(
@@ -440,10 +440,10 @@ async def test_streaming_with_multiple_tool_calls(
     - All tool calls are executed
     - Tool calls are indexed correctly
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create streaming response with multiple tool calls
         stream_lines = create_multiple_tool_calls_stream(
@@ -535,10 +535,10 @@ async def test_streaming_fallback_on_error(
     - EVENT_STREAMING_ERROR is fired
     - Response is still generated successfully
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []
@@ -618,10 +618,10 @@ async def test_streaming_disabled_uses_synchronous(
     - Synchronous processing is used
     - No streaming attempted
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, non_streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, non_streaming_config, session_manager)
 
         # Verify _can_stream() returns False
         # We need to set up the context first
@@ -675,10 +675,10 @@ async def test_streaming_no_chatlog_uses_synchronous(
     - _can_stream() returns False when ChatLog is None
     - Synchronous processing is used
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Mock ChatLog to be None (not available)
         with patch("homeassistant.components.conversation.chat_log.current_chat_log") as mock_ctx:
@@ -728,10 +728,10 @@ async def test_streaming_no_delta_listener_uses_synchronous(
     - _can_stream() returns False when delta_listener is None
     - Synchronous processing is used
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Mock ChatLog without delta_listener
         mock_chat_log = MagicMock(spec=conversation.ChatLog)
@@ -785,10 +785,10 @@ async def test_streaming_conversation_history_integration(
     - Conversation history is included in streaming requests
     - User and assistant messages are saved after streaming
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Add some history
         agent.conversation_manager.add_message("test_123", "user", "Previous question")
@@ -866,10 +866,10 @@ async def test_streaming_tool_iteration_loop(
     - Multiple streaming calls are made
     - unresponded_tool_results controls loop termination
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # First call: tool call
         stream_lines_1 = create_tool_call_stream("ha_query", {"entity_id": "light.living_room"})

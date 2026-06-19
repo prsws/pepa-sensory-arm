@@ -1,4 +1,4 @@
-"""Unit tests for Home Agent config flow."""
+"""Unit tests for Pepa Sensory Arm config flow."""
 
 from unittest.mock import Mock
 
@@ -6,13 +6,13 @@ import pytest
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.home_agent.config_flow import (
-    HomeAgentConfigFlow,
-    HomeAgentOptionsFlow,
+from custom_components.pepa_sensory_arm.config_flow import (
+    PepaSensoryArmConfigFlow,
+    PepaSensoryArmOptionsFlow,
     _migrate_legacy_backend,
     _validate_proxy_headers,
 )
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
     CONF_DEBUG_LOGGING,
@@ -42,7 +42,7 @@ from custom_components.home_agent.const import (
     DEFAULT_STREAMING_ENABLED,
     LLM_BACKEND_OLLAMA_GPU,
 )
-from custom_components.home_agent.exceptions import ValidationError
+from custom_components.pepa_sensory_arm.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -183,7 +183,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_success(self):
         """Test successful external LLM config validation."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "https://api.openai.com/v1",
@@ -196,7 +196,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_empty_url(self):
         """Test validation error for empty base URL."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "",
@@ -209,7 +209,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_invalid_url(self):
         """Test validation error for invalid URL format."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "not-a-url",
@@ -222,7 +222,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_empty_api_key(self):
         """Test validation error for empty API key."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "https://api.openai.com/v1",
@@ -235,7 +235,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_whitespace_api_key(self):
         """Test validation error for whitespace-only API key."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "https://api.openai.com/v1",
@@ -248,7 +248,7 @@ class TestExternalLLMValidation:
 
     async def test_validate_external_llm_config_empty_model(self):
         """Test validation error for empty model name."""
-        options_flow = HomeAgentOptionsFlow(Mock())
+        options_flow = PepaSensoryArmOptionsFlow(Mock())
 
         config = {
             CONF_EXTERNAL_LLM_BASE_URL: "https://api.openai.com/v1",
@@ -260,12 +260,12 @@ class TestExternalLLMValidation:
             await options_flow._validate_external_llm_config(config)
 
 
-class TestHomeAgentOptionsFlow:
-    """Test Home Agent options flow."""
+class TestPepaSensoryArmOptionsFlow:
+    """Test Pepa Sensory Arm options flow."""
 
     async def test_options_flow_includes_streaming_option(self, mock_config_entry, mock_hass):
         """Test that options flow includes streaming toggle in debug settings."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the debug settings form
@@ -295,7 +295,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_streaming_defaults_to_disabled(self, mock_config_entry, mock_hass):
         """Test that streaming defaults to False."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the debug settings form
@@ -311,7 +311,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_streaming_option_can_be_enabled(self, mock_config_entry, mock_hass):
         """Test that user can enable streaming."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Submit form with streaming enabled
@@ -331,7 +331,7 @@ class TestHomeAgentOptionsFlow:
         # Set initial state with streaming enabled
         mock_config_entry.options = {CONF_STREAMING_ENABLED: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Submit form with streaming disabled
@@ -351,7 +351,7 @@ class TestHomeAgentOptionsFlow:
         # Enable streaming
         mock_config_entry.options = {CONF_STREAMING_ENABLED: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the debug settings form
@@ -369,7 +369,7 @@ class TestHomeAgentOptionsFlow:
         # Config entry without streaming option (simulating existing installation)
         mock_config_entry.options = {CONF_DEBUG_LOGGING: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the debug settings form
@@ -392,7 +392,7 @@ class TestHomeAgentOptionsFlow:
             "memory_enabled": False,
         }
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Update only streaming setting
@@ -423,7 +423,7 @@ class TestHomeAgentOptionsFlow:
             "llm_model": "llama3",
         }
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Simulate user clearing the API key field
@@ -456,7 +456,7 @@ class TestHomeAgentOptionsFlow:
             "llm_model": "llama3",
         }
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Simulate user explicitly setting API key to empty string
@@ -479,7 +479,7 @@ class TestHomeAgentOptionsFlow:
         self, mock_config_entry, mock_hass
     ):
         """Test that history_settings step includes both session_persistence_enabled fields."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the history settings form
@@ -507,7 +507,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_session_persistence_defaults(self, mock_config_entry, mock_hass):
         """Test that session_persistence_enabled defaults to True and (minutes)."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the history settings form
@@ -527,7 +527,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_session_timeout_converts_to_seconds(self, mock_config_entry, mock_hass):
         """Test that when user enters timeout in minutes (e.g., 30), it gets converted storage."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Submit form with session timeout in minutes
@@ -550,7 +550,7 @@ class TestHomeAgentOptionsFlow:
         # Set initial state with timeout in seconds (7200 seconds = 120 minutes)
         mock_config_entry.options = {CONF_SESSION_TIMEOUT: 7200}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the history settings form
@@ -565,7 +565,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_context_settings_success(self, mock_config_entry, mock_hass):
         """Test successful context settings update."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -582,7 +582,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_context_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that context settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_context_settings()
@@ -592,7 +592,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_vector_db_settings_success(self, mock_config_entry, mock_hass):
         """Test successful vector DB settings update."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -611,7 +611,7 @@ class TestHomeAgentOptionsFlow:
         self, mock_config_entry, mock_hass
     ):
         """Test that comma-separated collections are parsed to list."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -630,7 +630,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_vector_db_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that vector DB settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_vector_db_settings()
@@ -640,7 +640,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_prompt_settings_success(self, mock_config_entry, mock_hass):
         """Test successful prompt settings update."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -656,7 +656,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_prompt_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that prompt settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_prompt_settings()
@@ -668,7 +668,7 @@ class TestHomeAgentOptionsFlow:
         self, mock_config_entry, mock_hass
     ):
         """Test that prompt settings form includes the include_labels option."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the prompt settings form
@@ -691,7 +691,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_prompt_include_labels_defaults_to_false(self, mock_config_entry, mock_hass):
         """Test that prompt_include_labels defaults to False."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the prompt settings form
@@ -707,7 +707,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_prompt_include_labels_can_be_enabled(self, mock_config_entry, mock_hass):
         """Test that user can enable prompt_include_labels."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Submit form with include_labels enabled
@@ -727,7 +727,7 @@ class TestHomeAgentOptionsFlow:
         # Set initial state with include_labels enabled
         mock_config_entry.options = {CONF_PROMPT_INCLUDE_LABELS: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Submit form with include_labels disabled
@@ -747,7 +747,7 @@ class TestHomeAgentOptionsFlow:
         # Enable include_labels
         mock_config_entry.options = {CONF_PROMPT_INCLUDE_LABELS: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the prompt settings form
@@ -767,7 +767,7 @@ class TestHomeAgentOptionsFlow:
         # Config entry without include_labels option (simulating existing installation)
         mock_config_entry.options = {CONF_PROMPT_USE_DEFAULT: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Get the prompt settings form
@@ -790,7 +790,7 @@ class TestHomeAgentOptionsFlow:
             "memory_enabled": False,
         }
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Update only include_labels setting
@@ -810,7 +810,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_tool_settings_success(self, mock_config_entry, mock_hass):
         """Test successful tool settings update."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -826,7 +826,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_tool_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that tool settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_tool_settings()
@@ -836,7 +836,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_external_llm_settings_success(self, mock_config_entry, mock_hass):
         """Test successful external LLM settings update."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -854,7 +854,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_external_llm_settings_validation_error(self, mock_config_entry, mock_hass):
         """Test external LLM settings validation error."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         # Missing API key should trigger validation error
@@ -873,7 +873,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_external_llm_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that external LLM settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_external_llm_settings()
@@ -886,7 +886,7 @@ class TestHomeAgentOptionsFlow:
         # Enable external LLM first
         mock_config_entry.options = {CONF_EXTERNAL_LLM_ENABLED: True}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -906,7 +906,7 @@ class TestHomeAgentOptionsFlow:
         # External LLM is disabled
         mock_config_entry.options = {CONF_EXTERNAL_LLM_ENABLED: False}
 
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -923,7 +923,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_memory_settings_shows_form(self, mock_config_entry, mock_hass):
         """Test that memory settings shows form without user input."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         result = await options_flow.async_step_memory_settings()
@@ -933,7 +933,7 @@ class TestHomeAgentOptionsFlow:
 
     async def test_llm_settings_validation_error_invalid_url(self, mock_config_entry, mock_hass):
         """Test LLM settings validation error for invalid URL."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -951,7 +951,7 @@ class TestHomeAgentOptionsFlow:
         self, mock_config_entry, mock_hass
     ):
         """Test LLM settings validation error for invalid proxy headers."""
-        options_flow = HomeAgentOptionsFlow(mock_config_entry)
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
         options_flow.hass = mock_hass
 
         user_input = {
@@ -967,12 +967,12 @@ class TestHomeAgentOptionsFlow:
         assert result["errors"]["base"] == "invalid_config"
 
 
-class TestHomeAgentConfigFlow:
-    """Test Home Agent config flow initialization."""
+class TestPepaSensoryArmConfigFlow:
+    """Test Pepa Sensory Arm config flow initialization."""
 
     async def test_config_flow_does_not_include_streaming_in_initial_setup(self):
         """Test that initial setup doesn't include streaming (options only)."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         # Get the initial user step form
         result = await config_flow.async_step_user()
@@ -989,7 +989,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_accepts_empty_api_key(self):
         """Test that config flow accepts empty API key for local LLMs."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         # Get the initial user step form
         result = await config_flow.async_step_user()
@@ -1011,7 +1011,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_api_key_uses_suggested_value(self):
         """Test that API key uses suggested_value pattern (not default) to allow clearing."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         # Get the initial user step form
         result = await config_flow.async_step_user()
@@ -1029,7 +1029,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_validation_error_invalid_url(self):
         """Test that invalid URL triggers validation error."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",
@@ -1046,7 +1046,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_validation_error_empty_model(self):
         """Test that empty model name triggers validation error."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",
@@ -1063,7 +1063,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_validation_error_invalid_proxy_headers(self):
         """Test that invalid proxy headers trigger validation error."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",
@@ -1081,7 +1081,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_success_with_valid_config(self):
         """Test successful config entry creation."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",
@@ -1100,7 +1100,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_success_with_empty_api_key(self):
         """Test successful config entry creation with empty API key (local LLM)."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Local LLM",
@@ -1116,7 +1116,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_success_with_valid_proxy_headers(self):
         """Test successful config entry with valid proxy headers."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",
@@ -1133,7 +1133,7 @@ class TestHomeAgentConfigFlow:
 
     async def test_config_flow_migrates_legacy_backend(self):
         """Test that legacy backend setting is migrated to proxy headers."""
-        config_flow = HomeAgentConfigFlow()
+        config_flow = PepaSensoryArmConfigFlow()
 
         user_input = {
             "name": "Test Agent",

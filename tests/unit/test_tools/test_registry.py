@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from custom_components.home_agent.exceptions import ToolExecutionError, ValidationError
-from custom_components.home_agent.tools.registry import BaseTool, ToolRegistry
+from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError, ValidationError
+from custom_components.pepa_sensory_arm.tools.registry import BaseTool, ToolRegistry
 
 
 class MockTool(BaseTool):

@@ -6,10 +6,10 @@ properly raised, caught, and inherit from the correct base classes.
 
 import pytest
 
-from custom_components.home_agent.exceptions import (
+from custom_components.pepa_sensory_arm.exceptions import (
     AuthenticationError,
     ContextInjectionError,
-    HomeAgentError,
+    PepaSensoryArmError,
     PermissionDenied,
     RateLimitExceeded,
     TokenLimitExceeded,
@@ -18,39 +18,39 @@ from custom_components.home_agent.exceptions import (
 )
 
 
-class TestHomeAgentError:
-    """Tests for HomeAgentError base exception."""
+class TestPepaSensoryArmError:
+    """Tests for PepaSensoryArmError base exception."""
 
-    def test_raise_home_agent_error(self):
-        """Test that HomeAgentError can be raised."""
-        with pytest.raises(HomeAgentError):
-            raise HomeAgentError("Test error")
+    def test_raise_pepa_sensory_arm_error(self):
+        """Test that PepaSensoryArmError can be raised."""
+        with pytest.raises(PepaSensoryArmError):
+            raise PepaSensoryArmError("Test error")
 
-    def test_home_agent_error_message(self):
-        """Test that HomeAgentError preserves message."""
+    def test_pepa_sensory_arm_error_message(self):
+        """Test that PepaSensoryArmError preserves message."""
         message = "This is a test error message"
-        with pytest.raises(HomeAgentError) as exc_info:
-            raise HomeAgentError(message)
+        with pytest.raises(PepaSensoryArmError) as exc_info:
+            raise PepaSensoryArmError(message)
 
         assert str(exc_info.value) == message
 
-    def test_home_agent_error_inherits_from_exception(self):
-        """Test that HomeAgentError inherits from Exception."""
-        assert issubclass(HomeAgentError, Exception)
+    def test_pepa_sensory_arm_error_inherits_from_exception(self):
+        """Test that PepaSensoryArmError inherits from Exception."""
+        assert issubclass(PepaSensoryArmError, Exception)
 
-    def test_catch_home_agent_error(self):
-        """Test catching HomeAgentError."""
+    def test_catch_pepa_sensory_arm_error(self):
+        """Test catching PepaSensoryArmError."""
         try:
-            raise HomeAgentError("Test")
-        except HomeAgentError as error:
+            raise PepaSensoryArmError("Test")
+        except PepaSensoryArmError as error:
             assert str(error) == "Test"
         else:
-            pytest.fail("HomeAgentError was not caught")
+            pytest.fail("PepaSensoryArmError was not caught")
 
-    def test_home_agent_error_no_message(self):
-        """Test HomeAgentError with no message."""
-        with pytest.raises(HomeAgentError):
-            raise HomeAgentError()
+    def test_pepa_sensory_arm_error_no_message(self):
+        """Test PepaSensoryArmError with no message."""
+        with pytest.raises(PepaSensoryArmError):
+            raise PepaSensoryArmError()
 
 
 class TestContextInjectionError:
@@ -69,18 +69,18 @@ class TestContextInjectionError:
 
         assert str(exc_info.value) == message
 
-    def test_context_injection_error_inherits_from_home_agent_error(self):
-        """Test that ContextInjectionError inherits from HomeAgentError."""
-        assert issubclass(ContextInjectionError, HomeAgentError)
+    def test_context_injection_error_inherits_from_pepa_sensory_arm_error(self):
+        """Test that ContextInjectionError inherits from PepaSensoryArmError."""
+        assert issubclass(ContextInjectionError, PepaSensoryArmError)
 
-    def test_catch_context_injection_error_as_home_agent_error(self):
-        """Test catching ContextInjectionError as HomeAgentError."""
+    def test_catch_context_injection_error_as_pepa_sensory_arm_error(self):
+        """Test catching ContextInjectionError as PepaSensoryArmError."""
         try:
             raise ContextInjectionError("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("ContextInjectionError not caught as HomeAgentError")
+            pytest.fail("ContextInjectionError not caught as PepaSensoryArmError")
 
     def test_context_injection_error_formatted_message(self):
         """Test ContextInjectionError with formatted message."""
@@ -111,18 +111,18 @@ class TestToolExecutionError:
 
         assert str(exc_info.value) == message
 
-    def test_tool_execution_error_inherits_from_home_agent_error(self):
-        """Test that ToolExecutionError inherits from HomeAgentError."""
-        assert issubclass(ToolExecutionError, HomeAgentError)
+    def test_tool_execution_error_inherits_from_pepa_sensory_arm_error(self):
+        """Test that ToolExecutionError inherits from PepaSensoryArmError."""
+        assert issubclass(ToolExecutionError, PepaSensoryArmError)
 
-    def test_catch_tool_execution_error_as_home_agent_error(self):
-        """Test catching ToolExecutionError as HomeAgentError."""
+    def test_catch_tool_execution_error_as_pepa_sensory_arm_error(self):
+        """Test catching ToolExecutionError as PepaSensoryArmError."""
         try:
             raise ToolExecutionError("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("ToolExecutionError not caught as HomeAgentError")
+            pytest.fail("ToolExecutionError not caught as PepaSensoryArmError")
 
     def test_tool_execution_error_with_tool_details(self):
         """Test ToolExecutionError with tool and entity details."""
@@ -157,18 +157,18 @@ class TestAuthenticationError:
 
         assert str(exc_info.value) == message
 
-    def test_authentication_error_inherits_from_home_agent_error(self):
-        """Test that AuthenticationError inherits from HomeAgentError."""
-        assert issubclass(AuthenticationError, HomeAgentError)
+    def test_authentication_error_inherits_from_pepa_sensory_arm_error(self):
+        """Test that AuthenticationError inherits from PepaSensoryArmError."""
+        assert issubclass(AuthenticationError, PepaSensoryArmError)
 
-    def test_catch_authentication_error_as_home_agent_error(self):
-        """Test catching AuthenticationError as HomeAgentError."""
+    def test_catch_authentication_error_as_pepa_sensory_arm_error(self):
+        """Test catching AuthenticationError as PepaSensoryArmError."""
         try:
             raise AuthenticationError("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("AuthenticationError not caught as HomeAgentError")
+            pytest.fail("AuthenticationError not caught as PepaSensoryArmError")
 
     def test_authentication_error_with_url(self):
         """Test AuthenticationError with API URL details."""
@@ -197,18 +197,18 @@ class TestTokenLimitExceeded:
 
         assert str(exc_info.value) == message
 
-    def test_token_limit_exceeded_inherits_from_home_agent_error(self):
-        """Test that TokenLimitExceeded inherits from HomeAgentError."""
-        assert issubclass(TokenLimitExceeded, HomeAgentError)
+    def test_token_limit_exceeded_inherits_from_pepa_sensory_arm_error(self):
+        """Test that TokenLimitExceeded inherits from PepaSensoryArmError."""
+        assert issubclass(TokenLimitExceeded, PepaSensoryArmError)
 
-    def test_catch_token_limit_exceeded_as_home_agent_error(self):
-        """Test catching TokenLimitExceeded as HomeAgentError."""
+    def test_catch_token_limit_exceeded_as_pepa_sensory_arm_error(self):
+        """Test catching TokenLimitExceeded as PepaSensoryArmError."""
         try:
             raise TokenLimitExceeded("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("TokenLimitExceeded not caught as HomeAgentError")
+            pytest.fail("TokenLimitExceeded not caught as PepaSensoryArmError")
 
     def test_token_limit_exceeded_with_counts(self):
         """Test TokenLimitExceeded with token count details."""
@@ -242,18 +242,18 @@ class TestRateLimitExceeded:
 
         assert str(exc_info.value) == message
 
-    def test_rate_limit_exceeded_inherits_from_home_agent_error(self):
-        """Test that RateLimitExceeded inherits from HomeAgentError."""
-        assert issubclass(RateLimitExceeded, HomeAgentError)
+    def test_rate_limit_exceeded_inherits_from_pepa_sensory_arm_error(self):
+        """Test that RateLimitExceeded inherits from PepaSensoryArmError."""
+        assert issubclass(RateLimitExceeded, PepaSensoryArmError)
 
-    def test_catch_rate_limit_exceeded_as_home_agent_error(self):
-        """Test catching RateLimitExceeded as HomeAgentError."""
+    def test_catch_rate_limit_exceeded_as_pepa_sensory_arm_error(self):
+        """Test catching RateLimitExceeded as PepaSensoryArmError."""
         try:
             raise RateLimitExceeded("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("RateLimitExceeded not caught as HomeAgentError")
+            pytest.fail("RateLimitExceeded not caught as PepaSensoryArmError")
 
     def test_rate_limit_exceeded_with_retry_info(self):
         """Test RateLimitExceeded with retry information."""
@@ -284,18 +284,18 @@ class TestPermissionDenied:
 
         assert str(exc_info.value) == message
 
-    def test_permission_denied_inherits_from_home_agent_error(self):
-        """Test that PermissionDenied inherits from HomeAgentError."""
-        assert issubclass(PermissionDenied, HomeAgentError)
+    def test_permission_denied_inherits_from_pepa_sensory_arm_error(self):
+        """Test that PermissionDenied inherits from PepaSensoryArmError."""
+        assert issubclass(PermissionDenied, PepaSensoryArmError)
 
-    def test_catch_permission_denied_as_home_agent_error(self):
-        """Test catching PermissionDenied as HomeAgentError."""
+    def test_catch_permission_denied_as_pepa_sensory_arm_error(self):
+        """Test catching PermissionDenied as PepaSensoryArmError."""
         try:
             raise PermissionDenied("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("PermissionDenied not caught as HomeAgentError")
+            pytest.fail("PermissionDenied not caught as PepaSensoryArmError")
 
     def test_permission_denied_with_entity_info(self):
         """Test PermissionDenied with entity details."""
@@ -327,18 +327,18 @@ class TestValidationError:
 
         assert str(exc_info.value) == message
 
-    def test_validation_error_inherits_from_home_agent_error(self):
-        """Test that ValidationError inherits from HomeAgentError."""
-        assert issubclass(ValidationError, HomeAgentError)
+    def test_validation_error_inherits_from_pepa_sensory_arm_error(self):
+        """Test that ValidationError inherits from PepaSensoryArmError."""
+        assert issubclass(ValidationError, PepaSensoryArmError)
 
-    def test_catch_validation_error_as_home_agent_error(self):
-        """Test catching ValidationError as HomeAgentError."""
+    def test_catch_validation_error_as_pepa_sensory_arm_error(self):
+        """Test catching ValidationError as PepaSensoryArmError."""
         try:
             raise ValidationError("Test")
-        except HomeAgentError:
+        except PepaSensoryArmError:
             pass  # Should catch successfully
         else:
-            pytest.fail("ValidationError not caught as HomeAgentError")
+            pytest.fail("ValidationError not caught as PepaSensoryArmError")
 
     def test_validation_error_with_format_details(self):
         """Test ValidationError with format details."""
@@ -355,8 +355,8 @@ class TestValidationError:
 class TestExceptionHierarchy:
     """Tests for exception hierarchy and catching behavior."""
 
-    def test_catch_all_exceptions_with_home_agent_error(self):
-        """Test that all custom exceptions can be caught as HomeAgentError."""
+    def test_catch_all_exceptions_with_pepa_sensory_arm_error(self):
+        """Test that all custom exceptions can be caught as PepaSensoryArmError."""
         exceptions = [
             ContextInjectionError("test"),
             ToolExecutionError("test"),
@@ -370,10 +370,10 @@ class TestExceptionHierarchy:
         for exc in exceptions:
             try:
                 raise exc
-            except HomeAgentError:
+            except PepaSensoryArmError:
                 pass  # Should catch successfully
             else:
-                pytest.fail(f"{exc.__class__.__name__} not caught as HomeAgentError")
+                pytest.fail(f"{exc.__class__.__name__} not caught as PepaSensoryArmError")
 
     def test_exception_type_specificity(self):
         """Test that specific exception types can be caught separately."""
@@ -382,9 +382,9 @@ class TestExceptionHierarchy:
             raise ValidationError("test")
         except ValidationError as error:
             assert isinstance(error, ValidationError)
-            assert isinstance(error, HomeAgentError)
-        except HomeAgentError:
-            pytest.fail("ValidationError should be caught before HomeAgentError")
+            assert isinstance(error, PepaSensoryArmError)
+        except PepaSensoryArmError:
+            pytest.fail("ValidationError should be caught before PepaSensoryArmError")
 
     def test_multiple_exception_handlers(self):
         """Test multiple exception handlers in order."""
@@ -396,8 +396,8 @@ class TestExceptionHierarchy:
             caught_exception_type = "ValidationError"
         except ToolExecutionError:
             caught_exception_type = "ToolExecutionError"
-        except HomeAgentError:
-            caught_exception_type = "HomeAgentError"
+        except PepaSensoryArmError:
+            caught_exception_type = "PepaSensoryArmError"
 
         assert caught_exception_type == "ToolExecutionError"
 
@@ -442,7 +442,7 @@ class TestExceptionWithAttributes:
     def test_exception_string_representation(self):
         """Test string representation of exceptions."""
         message = "This is the error message"
-        error = HomeAgentError(message)
+        error = PepaSensoryArmError(message)
 
         assert str(error) == message
         assert message in repr(error)

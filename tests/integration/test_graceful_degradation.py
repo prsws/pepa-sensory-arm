@@ -1,6 +1,6 @@
 """Integration tests for graceful degradation when optional components are unavailable.
 
-This test suite verifies that the Home Agent system continues to work when optional
+This test suite verifies that the Pepa Sensory Arm system continues to work when optional
 components fail or are unavailable. Each test mocks a component failure and verifies:
 1. The agent still initializes successfully
 2. Core functionality (basic conversation) still works
@@ -15,8 +15,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_EMIT_EVENTS,
     CONF_EXTERNAL_LLM_ENABLED,
@@ -33,7 +33,7 @@ from custom_components.home_agent.const import (
     DEFAULT_HISTORY_MAX_MESSAGES,
     DEFAULT_HISTORY_MAX_TOKENS,
 )
-from custom_components.home_agent.exceptions import HomeAgentError
+from custom_components.pepa_sensory_arm.exceptions import PepaSensoryArmError
 
 
 @pytest.mark.integration
@@ -102,14 +102,14 @@ class TestGracefulDegradation:
 
         # Mock VectorDBContextProvider to raise an error during initialization
         with patch(
-            "custom_components.home_agent.context_providers.vector_db.VectorDBContextProvider"
+            "custom_components.pepa_sensory_arm.context_providers.vector_db.VectorDBContextProvider"
         ) as mock_vector_provider:
             mock_vector_provider.side_effect = Exception("Vector DB connection failed")
 
             # Agent should fail to initialize due to context provider error
             # or should handle the error gracefully
             try:
-                agent = HomeAgent(mock_hass, config, session_manager)
+                agent = PepaSensoryArm(mock_hass, config, session_manager)
 
                 # If it doesn't raise, verify agent initialized but error was logged
                 assert agent is not None
@@ -134,7 +134,7 @@ class TestGracefulDegradation:
         """Test that context retrieval failures raise appropriate errors.
 
         Verifies:
-        - Agent raises HomeAgentError when context retrieval fails
+        - Agent raises PepaSensoryArmError when context retrieval fails
         - Error is logged appropriately
         - No graceful degradation (context is critical for proper operation)
 
@@ -149,7 +149,7 @@ class TestGracefulDegradation:
         # Configure with direct mode (we'll test the context failure specifically)
         config = base_config.copy()
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock the context manager to fail during get_formatted_context
         with patch.object(
@@ -160,7 +160,7 @@ class TestGracefulDegradation:
             # Mock LLM call to succeed (though we won't get there)
             with patch.object(agent, "_call_llm", return_value=mock_llm_response):
                 # Context failure should raise an error (not gracefully degrade)
-                with pytest.raises((HomeAgentError, Exception)):
+                with pytest.raises((PepaSensoryArmError, Exception)):
                     await agent.process_message(
                         text="Hello, are you there?",
                         conversation_id="test_conv_1",
@@ -190,7 +190,7 @@ class TestGracefulDegradation:
             CONF_MEMORY_ENABLED: True,
         }
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Verify memory manager is None (not initialized in test fixture)
         assert agent.memory_manager is None
@@ -233,13 +233,13 @@ class TestGracefulDegradation:
         # Mock ExternalLLMTool to fail during instantiation
         # This tests that tool failures are handled (or demonstrates they should be)
         with patch(
-            "custom_components.home_agent.agent.core.ExternalLLMTool",
+            "custom_components.pepa_sensory_arm.agent.core.ExternalLLMTool",
             side_effect=Exception("External LLM service unavailable"),
         ):
             # Agent initialization will fail when trying to register tools
             # This demonstrates the need for error handling in _register_tools
             try:
-                agent = HomeAgent(mock_hass, config, session_manager)
+                agent = PepaSensoryArm(mock_hass, config, session_manager)
 
                 # If we get here, verify the agent is still functional
                 # Force tool registration (will fail with external LLM)
@@ -283,13 +283,13 @@ class TestGracefulDegradation:
 
         # Mock DirectContextProvider to fail during init
         with patch(
-            "custom_components.home_agent.context_manager.DirectContextProvider"
+            "custom_components.pepa_sensory_arm.context_manager.DirectContextProvider"
         ) as mock_direct_provider:
             mock_direct_provider.side_effect = Exception("Context provider initialization failed")
 
             # This should raise ContextInjectionError during agent init
             try:
-                HomeAgent(mock_hass, config, session_manager)
+                PepaSensoryArm(mock_hass, config, session_manager)
 
                 # If it doesn't raise, verify error was logged
                 assert any(
@@ -331,7 +331,7 @@ class TestGracefulDegradation:
             ],
         }
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Force tool registration
         agent._ensure_tools_registered()
@@ -372,7 +372,7 @@ class TestGracefulDegradation:
             CONF_HISTORY_ENABLED: True,
         }
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock the conversation manager's persist method to fail
         # (if it has one - otherwise just verify history works in memory)
@@ -436,9 +436,9 @@ class TestGracefulDegradation:
         # Mock multiple component failures
         with (
             patch(
-                "custom_components.home_agent.context_providers.vector_db.VectorDBContextProvider"
+                "custom_components.pepa_sensory_arm.context_providers.vector_db.VectorDBContextProvider"
             ) as mock_vector_provider,
-            patch("custom_components.home_agent.agent.core.ExternalLLMTool") as mock_ext_llm,
+            patch("custom_components.pepa_sensory_arm.agent.core.ExternalLLMTool") as mock_ext_llm,
         ):
 
             # Make vector DB and external LLM fail
@@ -446,7 +446,7 @@ class TestGracefulDegradation:
             mock_ext_llm.side_effect = Exception("External LLM unavailable")
 
             try:
-                agent = HomeAgent(mock_hass, config, session_manager)
+                agent = PepaSensoryArm(mock_hass, config, session_manager)
 
                 # If agent created, verify it's in degraded state
                 assert agent is not None
@@ -485,16 +485,16 @@ class TestGracefulDegradation:
 
         config = base_config.copy()
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock LLM to fail temporarily
         with patch.object(
             agent,
             "_call_llm",
-            side_effect=HomeAgentError("LLM API connection timeout"),
+            side_effect=PepaSensoryArmError("LLM API connection timeout"),
         ):
             # Should raise a controlled error, not crash
-            with pytest.raises(HomeAgentError) as exc_info:
+            with pytest.raises(PepaSensoryArmError) as exc_info:
                 await agent.process_message(
                     text="Are you there?",
                     conversation_id="test_conv_7",
@@ -526,7 +526,7 @@ class TestGracefulDegradation:
             CONF_EMIT_EVENTS: True,  # Enable to test fallback event
         }
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock _can_stream to return True
         with patch.object(agent, "_can_stream", return_value=True):
@@ -580,7 +580,7 @@ class TestGracefulDegradation:
             CONF_MEMORY_ENABLED: True,
         }
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock a memory manager that will be set
         mock_memory_manager = MagicMock()
@@ -630,7 +630,7 @@ class TestGracefulDegradation:
 
         config = base_config.copy()
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Mock LLM to request a tool call, then handle the error
@@ -694,7 +694,7 @@ class TestGracefulDegradation:
         - Success after retries
         - Exception handling
         """
-        from custom_components.home_agent.const import (
+        from custom_components.pepa_sensory_arm.const import (
             DEFAULT_RETRY_BACKOFF_FACTOR,
             DEFAULT_RETRY_INITIAL_DELAY,
             DEFAULT_RETRY_JITTER,
@@ -708,7 +708,7 @@ class TestGracefulDegradation:
         assert DEFAULT_RETRY_JITTER is True
 
         # Verify the imports exist in llm.py
-        import custom_components.home_agent.agent.llm as llm_module
+        import custom_components.pepa_sensory_arm.agent.llm as llm_module
 
         assert hasattr(llm_module, "DEFAULT_RETRY_INITIAL_DELAY")
         assert hasattr(llm_module, "DEFAULT_RETRY_BACKOFF_FACTOR")

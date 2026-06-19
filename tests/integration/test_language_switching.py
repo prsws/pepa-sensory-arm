@@ -1,4 +1,4 @@
-"""Integration tests for language switching in Home Agent.
+"""Integration tests for language switching in Pepa Sensory Arm.
 
 These tests verify that the agent correctly handles language switching between
 conversation turns, maintains language isolation between concurrent conversations,
@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.components import conversation as ha_conversation
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
@@ -25,7 +25,7 @@ from custom_components.home_agent.const import (
     CONF_LLM_MODEL,
     CONF_LLM_TEMPERATURE,
 )
-from custom_components.home_agent.exceptions import (
+from custom_components.pepa_sensory_arm.exceptions import (
     AuthenticationError,
     ServiceUnavailableError,
 )
@@ -73,11 +73,11 @@ async def test_language_switch_between_turns(
     )
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with mock_llm_server.patch_aiohttp():
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Turn 1: Send message in English
             user_input_1 = ha_conversation.ConversationInput(
@@ -87,7 +87,7 @@ async def test_language_switch_between_turns(
                 context=MagicMock(user_id="test_user"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_1 = await agent.async_process(user_input_1)
@@ -108,7 +108,7 @@ async def test_language_switch_between_turns(
                 context=MagicMock(user_id="test_user"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_2 = await agent.async_process(user_input_2)
@@ -129,7 +129,7 @@ async def test_language_switch_between_turns(
                 context=MagicMock(user_id="test_user"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_3 = await agent.async_process(user_input_3)
@@ -184,11 +184,11 @@ async def test_concurrent_conversations_different_languages(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with mock_llm_server.patch_aiohttp():
-            agent = HomeAgent(test_hass, config, session_manager)
+            agent = PepaSensoryArm(test_hass, config, session_manager)
 
             # Start conversation 1 in English
             user_input_en_1 = ha_conversation.ConversationInput(
@@ -198,7 +198,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_en"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_en_1 = await agent.async_process(user_input_en_1)
@@ -212,7 +212,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_de"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_de_1 = await agent.async_process(user_input_de_1)
@@ -226,7 +226,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_es"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_es_1 = await agent.async_process(user_input_es_1)
@@ -241,7 +241,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_en"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_en_2 = await agent.async_process(user_input_en_2)
@@ -257,7 +257,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_de"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_de_2 = await agent.async_process(user_input_de_2)
@@ -273,7 +273,7 @@ async def test_concurrent_conversations_different_languages(
                 context=MagicMock(user_id="user_es"),
                 device_id=None,
                 satellite_id=None,
-                agent_id="home_agent",
+                agent_id="pepa_sensory_arm",
             )
 
             result_es_2 = await agent.async_process(user_input_es_2)
@@ -319,11 +319,11 @@ async def test_language_preserved_in_errors(
     }
 
     with patch(
-        "custom_components.home_agent.agent.core.async_should_expose",
+        "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
         return_value=False,
     ):
         with mock_llm_server.patch_aiohttp():
-            agent = HomeAgent(test_hass, config_auth_error, session_manager)
+            agent = PepaSensoryArm(test_hass, config_auth_error, session_manager)
 
             # Mock the LLM client to raise AuthenticationError
             async def mock_llm_call(*args, **kwargs):
@@ -338,7 +338,7 @@ async def test_language_preserved_in_errors(
                     context=MagicMock(user_id="test_user"),
                     device_id=None,
                     satellite_id=None,
-                    agent_id="home_agent",
+                    agent_id="pepa_sensory_arm",
                 )
 
                 result_de = await agent.async_process(user_input_de)
@@ -363,7 +363,7 @@ async def test_language_preserved_in_errors(
                     context=MagicMock(user_id="test_user"),
                     device_id=None,
                     satellite_id=None,
-                    agent_id="home_agent",
+                    agent_id="pepa_sensory_arm",
                 )
 
                 result_fr = await agent.async_process(user_input_fr)

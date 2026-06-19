@@ -1,4 +1,4 @@
-"""Integration tests for language edge cases in Home Agent.
+"""Integration tests for language edge cases in Pepa Sensory Arm.
 
 These tests verify that the agent correctly handles edge cases related to
 language support including unicode handling, streaming with multiple languages,
@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.components import conversation as ha_conversation
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
@@ -76,12 +76,12 @@ async def test_unicode_handling_per_language(
 
     with (
         patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ),
         mock_llm_server.patch_aiohttp(),
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Send message with unicode characters
         user_input = ha_conversation.ConversationInput(
@@ -91,7 +91,7 @@ async def test_unicode_handling_per_language(
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result = await agent.async_process(user_input)
@@ -152,12 +152,12 @@ async def test_streaming_with_multilingual(test_hass, llm_config, session_manage
 
     with (
         patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ),
         mock_llm_server.patch_aiohttp(),
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Test German with streaming
         user_input_de = ha_conversation.ConversationInput(
@@ -167,7 +167,7 @@ async def test_streaming_with_multilingual(test_hass, llm_config, session_manage
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_de = await agent.async_process(user_input_de)
@@ -186,7 +186,7 @@ async def test_streaming_with_multilingual(test_hass, llm_config, session_manage
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_es = await agent.async_process(user_input_es)
@@ -236,7 +236,7 @@ async def test_tool_execution_language_agnostic(
 
     with (
         patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ),
         mock_llm_server.patch_aiohttp(),
@@ -269,7 +269,7 @@ async def test_tool_execution_language_agnostic(
 
         test_hass.services.async_call = AsyncMock(side_effect=mock_service_call)
 
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock the get_exposed_entities method to return test entities
         def mock_exposed_entities():
@@ -293,7 +293,7 @@ async def test_tool_execution_language_agnostic(
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_de = await agent.async_process(user_input_de)
@@ -345,12 +345,12 @@ async def test_empty_conversation_preserves_language(
 
     with (
         patch(
-            "custom_components.home_agent.agent.core.async_should_expose",
+            "custom_components.pepa_sensory_arm.agent.core.async_should_expose",
             return_value=False,
         ),
         mock_llm_server.patch_aiohttp(),
     ):
-        agent = HomeAgent(test_hass, config, session_manager)
+        agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Test 1: Very short message in French
         user_input_short = ha_conversation.ConversationInput(
@@ -360,7 +360,7 @@ async def test_empty_conversation_preserves_language(
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_short = await agent.async_process(user_input_short)
@@ -379,7 +379,7 @@ async def test_empty_conversation_preserves_language(
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_word = await agent.async_process(user_input_word)
@@ -398,7 +398,7 @@ async def test_empty_conversation_preserves_language(
             context=MagicMock(user_id="test_user"),
             device_id=None,
             satellite_id=None,
-            agent_id="home_agent",
+            agent_id="pepa_sensory_arm",
         )
 
         result_minimal = await agent.async_process(user_input_minimal)

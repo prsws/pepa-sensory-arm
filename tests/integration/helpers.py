@@ -1,6 +1,6 @@
 """Helper functions for integration tests.
 
-This module provides utilities to simplify integration testing of Home Agent
+This module provides utilities to simplify integration testing of Pepa Sensory Arm
 components including entity indexing, message sending, tool verification,
 and cleanup operations.
 """
@@ -75,14 +75,14 @@ async def send_message_and_wait(
     """Send a message to the agent and wait for response with timeout.
 
     Args:
-        agent: HomeAgent instance
+        agent: PepaSensoryArm instance
         message: User message text
         conversation_id: Optional conversation ID for context
         timeout: Timeout in seconds (default: 30.0)
         context: Optional Home Assistant context
         device_id: Optional device ID
         satellite_id: Optional satellite ID
-        agent_id: Optional agent ID (defaults to "home_agent")
+        agent_id: Optional agent ID (defaults to "pepa_sensory_arm")
         language: Language code for the conversation (default: "en")
 
     Returns:
@@ -107,7 +107,7 @@ async def send_message_and_wait(
         device_id=device_id,
         satellite_id=satellite_id,
         language=language,
-        agent_id=agent_id or "home_agent",
+        agent_id=agent_id or "pepa_sensory_arm",
     )
 
     # Process with timeout
@@ -134,7 +134,7 @@ async def assert_tool_called(
     executed at least the minimum number of times.
 
     Args:
-        agent: HomeAgent instance with tool_handler
+        agent: PepaSensoryArm instance with tool_handler
         tool_name: Name of the tool to check (e.g., "ha_control", "ha_query")
         min_calls: Minimum number of expected calls (default: 1)
 

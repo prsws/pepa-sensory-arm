@@ -21,8 +21,8 @@ import pytest
 from homeassistant.components import conversation
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_HISTORY_ENABLED,
     CONF_LLM_API_KEY,
     CONF_LLM_BASE_URL,
@@ -221,10 +221,10 @@ async def test_partial_sse_stream_connection_drop(
     - Appropriate error event is fired
     - User receives error response (not partial data)
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []
@@ -315,10 +315,10 @@ async def test_malformed_sse_data_handling(
     - No crash on malformed input
     - Partial valid content is processed
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Mock response with malformed data
         mock_response = MagicMock()
@@ -388,10 +388,10 @@ async def test_http_503_during_streaming(
     - Error event is fired
     - User receives fallback response
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []
@@ -485,10 +485,10 @@ async def test_timeout_during_streaming(
     - Error event is fired with timeout context
     - Resources are cleaned up properly
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []
@@ -570,10 +570,10 @@ async def test_invalid_json_in_sse_events(
     - Valid chunks continue to be processed
     - Stream completes successfully with partial data
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Mock response with invalid JSON
         mock_response = MagicMock()
@@ -642,10 +642,10 @@ async def test_invalid_tool_call_json_in_stream(
     - Tool call continues with empty args
     - Stream processing continues
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create stream with tool call containing invalid JSON
         async def invalid_tool_json_stream():
@@ -735,10 +735,10 @@ async def test_empty_stream_response(
     - System handles gracefully
     - Appropriate default response is generated
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create empty stream
         async def empty_stream():
@@ -809,10 +809,10 @@ async def test_network_error_before_streaming_starts(
     - Error event is fired
     - Fallback succeeds
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []
@@ -885,10 +885,10 @@ async def test_stream_with_only_done_marker(
     - No content results in appropriate behavior
     - No crashes occur
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Create stream with only [DONE]
         async def done_only_stream():
@@ -954,10 +954,10 @@ async def test_stream_handler_exception_propagation(
     - Error is logged with traceback
     - System falls back appropriately
     """
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass_for_streaming, streaming_config, session_manager)
+        agent = PepaSensoryArm(mock_hass_for_streaming, streaming_config, session_manager)
 
         # Track events
         events = []

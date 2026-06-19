@@ -1,0 +1,13 @@
+{
+  "domain": "pepa_sensory_arm",
+  "name": "Pepa Sensory Arm",
+  "after_dependencies": ["recorder"],
+  "codeowners": ["@prsws"],
+  "config_flow": true,
+  "dependencies": ["conversation"],
+  "documentation": "https://github.com/prsws/pepa-sensory-arm",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/prsws/pepa-sensory-arm/issues",
+  "requirements": ["aiohttp>=3.9.0", "chromadb-client==1.5.3"],
+  "version": "0.9.5"
+}

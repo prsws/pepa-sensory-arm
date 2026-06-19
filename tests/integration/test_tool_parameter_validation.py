@@ -17,14 +17,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_LLM_API_KEY,
     CONF_LLM_BASE_URL,
     CONF_LLM_MODEL,
     CONF_TOOLS_CUSTOM,
 )
-from custom_components.home_agent.exceptions import ToolExecutionError, ValidationError
+from custom_components.pepa_sensory_arm.exceptions import ToolExecutionError, ValidationError
 
 # Mark all tests in this module as integration tests
 pytestmark = pytest.mark.integration
@@ -103,10 +103,10 @@ async def test_tool_parameter_wrong_type_string_instead_of_number(mock_hass, ses
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         temp_tool = agent.tool_handler.tools["set_temperature"]
@@ -150,10 +150,10 @@ async def test_tool_parameter_invalid_parameters_not_dict(mock_hass, session_man
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Try to call with non-dict parameters
@@ -181,10 +181,10 @@ async def test_tool_parameter_parameters_is_list(mock_hass, session_manager):
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Try to call with list parameters
@@ -233,10 +233,10 @@ async def test_tool_parameter_missing_required_parameter(mock_hass, session_mana
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         notify_tool = agent.tool_handler.tools["send_notification"]
@@ -286,10 +286,10 @@ async def test_service_tool_parameter_missing_required(mock_hass, session_manage
     mock_hass.services.has_service = MagicMock(return_value=True)
     mock_hass.services.async_call = AsyncMock()
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Call with missing 'message' parameter
@@ -344,10 +344,10 @@ async def test_tool_parameter_empty_string_when_non_empty_required(mock_hass, se
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         search_tool = agent.tool_handler.tools["search_query"]
@@ -398,10 +398,10 @@ async def test_tool_execution_with_none_parameter_value(mock_hass, session_manag
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         tool = agent.tool_handler.tools["optional_param_tool"]
@@ -469,10 +469,10 @@ async def test_tool_parameter_nested_object_invalid_structure(mock_hass, session
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         user_tool = agent.tool_handler.tools["create_user"]
@@ -529,10 +529,10 @@ async def test_tool_parameter_validation_with_additional_properties(mock_hass, s
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         tool = agent.tool_handler.tools["simple_action"]
@@ -593,10 +593,10 @@ async def test_rest_tool_template_rendering_failure(mock_hass, session_manager):
         ],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute tool - should fail during template rendering
@@ -644,10 +644,10 @@ async def test_service_tool_template_rendering_failure(mock_hass, session_manage
 
     mock_hass.services.has_service = MagicMock(return_value=True)
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Execute tool - should fail during template rendering
@@ -685,10 +685,10 @@ async def test_tool_nonexistent_tool_call(mock_hass, session_manager):
         CONF_TOOLS_CUSTOM: [],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Try to call non-existent tool
@@ -712,10 +712,10 @@ async def test_tool_call_empty_tool_name(mock_hass, session_manager):
         CONF_TOOLS_CUSTOM: [],
     }
 
-    with patch("custom_components.home_agent.agent.core.async_should_expose") as mock_expose:
+    with patch("custom_components.pepa_sensory_arm.agent.core.async_should_expose") as mock_expose:
         mock_expose.return_value = False
 
-        agent = HomeAgent(mock_hass, config, session_manager)
+        agent = PepaSensoryArm(mock_hass, config, session_manager)
         agent._ensure_tools_registered()
 
         # Try to call with empty tool name

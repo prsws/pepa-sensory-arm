@@ -1,4 +1,4 @@
-"""Unit tests for Home Agent __init__.py (setup and service handlers)."""
+"""Unit tests for Pepa Sensory Arm __init__.py (setup and service handlers)."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -6,7 +6,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from custom_components.home_agent import (
+from custom_components.pepa_sensory_arm import (
     async_reload_entry,
     async_remove_services,
     async_setup,
@@ -14,7 +14,7 @@ from custom_components.home_agent import (
     async_setup_services,
     async_unload_entry,
 )
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
     CONF_TOOLS_CUSTOM,
@@ -59,7 +59,7 @@ def mock_config_entry():
 
 @pytest.fixture
 def mock_agent():
-    """Create a mock HomeAgent."""
+    """Create a mock PepaSensoryArm."""
     agent = MagicMock()
     agent.close = AsyncMock()
     agent.process_message = AsyncMock(return_value="Test response")
@@ -139,10 +139,10 @@ class TestAsyncSetup:
 class TestAsyncSetupEntry:
     """Test async_setup_entry function."""
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_basic(
         self,
         mock_setup_services,
@@ -169,10 +169,10 @@ class TestAsyncSetupEntry:
         mock_set_agent.assert_called_once_with(mock_hass, mock_config_entry, mock_agent)
         mock_setup_services.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_with_yaml_custom_tools(
         self,
         mock_setup_services,
@@ -202,11 +202,11 @@ class TestAsyncSetupEntry:
         assert CONF_TOOLS_CUSTOM in call_args[0][1]
         assert call_args[0][1][CONF_TOOLS_CUSTOM] == custom_tools
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.vector_db_manager.VectorDBManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.vector_db_manager.VectorDBManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_with_vector_db(
         self,
         mock_setup_services,
@@ -239,11 +239,11 @@ class TestAsyncSetupEntry:
         assert "vector_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
         mock_vector_manager.async_setup.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.vector_db_manager.VectorDBManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.vector_db_manager.VectorDBManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_vector_db_error_continues(
         self,
         mock_setup_services,
@@ -276,11 +276,11 @@ class TestAsyncSetupEntry:
         assert result is True
         assert "vector_manager" not in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.memory_manager.MemoryManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.memory_manager.MemoryManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_with_memory_enabled(
         self,
         mock_setup_services,
@@ -310,11 +310,11 @@ class TestAsyncSetupEntry:
         assert "memory_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
         mock_memory_manager.async_initialize.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.memory_manager.MemoryManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.memory_manager.MemoryManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_memory_disabled_by_default(
         self,
         mock_setup_services,
@@ -341,11 +341,11 @@ class TestAsyncSetupEntry:
         if not DEFAULT_MEMORY_ENABLED:
             mock_memory_class.assert_not_called()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.memory_manager.MemoryManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.memory_manager.MemoryManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_memory_error_continues(
         self,
         mock_setup_services,
@@ -375,12 +375,12 @@ class TestAsyncSetupEntry:
         assert result is True
         assert "memory_manager" not in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.vector_db_manager.VectorDBManager")
-    @patch("custom_components.home_agent.memory_manager.MemoryManager")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.vector_db_manager.VectorDBManager")
+    @patch("custom_components.pepa_sensory_arm.memory_manager.MemoryManager")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_with_both_vector_and_memory(
         self,
         mock_setup_services,
@@ -421,10 +421,10 @@ class TestAsyncSetupEntry:
         call_args = mock_memory_class.call_args
         assert call_args[1]["vector_db_manager"] == mock_vector_manager
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_registers_update_listener(
         self,
         mock_setup_services,
@@ -448,10 +448,10 @@ class TestAsyncSetupEntry:
         mock_config_entry.add_update_listener.assert_called_once()
         mock_config_entry.async_on_unload.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_session_persistence_enabled_default(
         self,
         mock_setup_services,
@@ -477,10 +477,10 @@ class TestAsyncSetupEntry:
         mock_session_manager_class.assert_called_once_with(mock_hass, 3600)
         mock_session_manager.async_load.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_session_persistence_disabled(
         self,
         mock_setup_services,
@@ -511,10 +511,10 @@ class TestAsyncSetupEntry:
         mock_session_manager_class.assert_called_once_with(mock_hass, 0)
         mock_session_manager.async_load.assert_called_once()
 
-    @patch("custom_components.home_agent.ConversationSessionManager")
-    @patch("custom_components.home_agent.HomeAgent")
-    @patch("custom_components.home_agent.ha_conversation.async_set_agent")
-    @patch("custom_components.home_agent.async_setup_services")
+    @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
+    @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_set_agent")
+    @patch("custom_components.pepa_sensory_arm.async_setup_services")
     async def test_setup_entry_session_persistence_custom_timeout(
         self,
         mock_setup_services,
@@ -559,7 +559,7 @@ class TestAsyncReloadEntry:
 class TestAsyncUnloadEntry:
     """Test async_unload_entry function."""
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
     async def test_unload_entry_with_agent_only(
         self, mock_unset_agent, mock_hass, mock_config_entry, mock_agent
     ):
@@ -573,7 +573,7 @@ class TestAsyncUnloadEntry:
         mock_agent.close.assert_called_once()
         assert mock_config_entry.entry_id not in mock_hass.data[DOMAIN]
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
     async def test_unload_entry_with_memory_manager(
         self,
         mock_unset_agent,
@@ -596,7 +596,7 @@ class TestAsyncUnloadEntry:
         mock_memory_manager.async_shutdown.assert_called_once()
         mock_agent.close.assert_called_once()
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
     async def test_unload_entry_with_vector_manager(
         self,
         mock_unset_agent,
@@ -619,7 +619,7 @@ class TestAsyncUnloadEntry:
         mock_vector_manager.async_shutdown.assert_called_once()
         mock_agent.close.assert_called_once()
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
     async def test_unload_entry_with_all_managers(
         self,
         mock_unset_agent,
@@ -645,8 +645,8 @@ class TestAsyncUnloadEntry:
         mock_vector_manager.async_shutdown.assert_called_once()
         mock_agent.close.assert_called_once()
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
-    @patch("custom_components.home_agent.async_remove_services")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.async_remove_services")
     async def test_unload_entry_removes_services_when_last(
         self,
         mock_remove_services,
@@ -665,8 +665,8 @@ class TestAsyncUnloadEntry:
         # Services should be removed since DOMAIN data is now empty
         mock_remove_services.assert_called_once_with(mock_hass)
 
-    @patch("custom_components.home_agent.ha_conversation.async_unset_agent")
-    @patch("custom_components.home_agent.async_remove_services")
+    @patch("custom_components.pepa_sensory_arm.ha_conversation.async_unset_agent")
+    @patch("custom_components.pepa_sensory_arm.async_remove_services")
     async def test_unload_entry_keeps_services_when_other_entries_exist(
         self,
         mock_remove_services,

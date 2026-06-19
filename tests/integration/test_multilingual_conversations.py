@@ -1,6 +1,6 @@
 """Integration tests for multilingual conversation support.
 
-This test suite validates that Home Agent correctly preserves language codes
+This test suite validates that Pepa Sensory Arm correctly preserves language codes
 through the conversation pipeline from ConversationInput.language to
 IntentResponse.language. The agent supports all languages (via MATCH_ALL)
 since it delegates to an LLM for natural language understanding.
@@ -14,8 +14,8 @@ from unittest.mock import patch
 
 import pytest
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
     CONF_HISTORY_MAX_MESSAGES,
@@ -35,7 +35,7 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture
 def base_agent_config() -> dict:
-    """Provide base configuration for HomeAgent.
+    """Provide base configuration for PepaSensoryArm.
 
     Returns:
         Dictionary with minimal agent configuration for testing
@@ -80,7 +80,7 @@ def mock_llm_response() -> dict:
 
 @pytest.fixture
 async def test_agent(test_hass, base_agent_config, session_manager):
-    """Create a HomeAgent instance for testing.
+    """Create a PepaSensoryArm instance for testing.
 
     Args:
         test_hass: Mock Home Assistant instance from conftest
@@ -88,9 +88,9 @@ async def test_agent(test_hass, base_agent_config, session_manager):
         session_manager: Conversation session manager
 
     Returns:
-        Configured HomeAgent instance
+        Configured PepaSensoryArm instance
     """
-    agent = HomeAgent(test_hass, base_agent_config, session_manager)
+    agent = PepaSensoryArm(test_hass, base_agent_config, session_manager)
     return agent
 
 

@@ -1,4 +1,4 @@
-"""Unit tests for thinking block handling in HomeAgent core.
+"""Unit tests for thinking block handling in PepaSensoryArm core.
 
 These tests specifically cover the strip_thinking_blocks integration point
 in the agent's _process_conversation method (core.py line ~1332).
@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from homeassistant.components import conversation as ha_conversation
 
-from custom_components.home_agent.agent.core import HomeAgent
-from custom_components.home_agent.const import DOMAIN
+from custom_components.pepa_sensory_arm.agent.core import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import DOMAIN
 
 
 @pytest.fixture
@@ -72,8 +72,8 @@ def basic_config():
 
 @pytest.fixture
 def agent(mock_hass, basic_config, mock_session_manager):
-    """Create a HomeAgent instance for testing."""
-    return HomeAgent(mock_hass, basic_config, mock_session_manager)
+    """Create a PepaSensoryArm instance for testing."""
+    return PepaSensoryArm(mock_hass, basic_config, mock_session_manager)
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ def user_input():
         language="en",
         device_id=None,
         satellite_id=None,
-        agent_id="home_agent",
+        agent_id="pepa_sensory_arm",
     )
 
 
@@ -112,7 +112,7 @@ class TestAgentCoreThinkingBlockStripping:
             mock_call.return_value = mock_response
 
             with patch(
-                "custom_components.home_agent.agent.core.strip_thinking_blocks"
+                "custom_components.pepa_sensory_arm.agent.core.strip_thinking_blocks"
             ) as mock_strip:
                 mock_strip.return_value = "User-facing response"
 
@@ -380,7 +380,7 @@ class TestAgentPreprocessUserMessage:
             "streaming": {"enabled": False},
             "emit_events": False,
         }
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         result = agent._preprocess_user_message("Turn on the lights")
         assert result == "Turn on the lights\n/no_think"
@@ -396,7 +396,7 @@ class TestAgentPreprocessUserMessage:
             "streaming": {"enabled": False},
             "emit_events": False,
         }
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         result = agent._preprocess_user_message("What's the weather?")
         assert result == "What's the weather?"
@@ -415,7 +415,7 @@ class TestAgentPreprocessUserMessage:
             "streaming": {"enabled": False},
             "emit_events": False,
         }
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         result = agent._preprocess_user_message("  Message with spaces  ")
         assert result == "Message with spaces\n/no_think"
@@ -431,7 +431,7 @@ class TestAgentPreprocessUserMessage:
             "streaming": {"enabled": False},
             "emit_events": False,
         }
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         result = agent._preprocess_user_message("")
         assert result == "\n/no_think"
@@ -447,7 +447,7 @@ class TestAgentPreprocessUserMessage:
             "streaming": {"enabled": False},
             "emit_events": False,
         }
-        agent = HomeAgent(mock_hass, config, mock_session_manager)
+        agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Test with /no_think already at the end
         result1 = agent._preprocess_user_message("Turn on the lights\n/no_think")

@@ -6,8 +6,8 @@ and applies token/message limits.
 
 import pytest
 
-from custom_components.home_agent.agent import HomeAgent
-from custom_components.home_agent.const import (
+from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.const import (
     CONF_DEBUG_LOGGING,
     CONF_EMIT_EVENTS,
     CONF_HISTORY_ENABLED,
@@ -52,7 +52,7 @@ async def test_history_persistence(
 
     with mock_llm_server.patch_aiohttp():
         # Create first agent and send messages
-        agent1 = HomeAgent(test_hass_with_default_entities, config, session_manager)
+        agent1 = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
         # Load any existing history
         await agent1.conversation_manager.load_from_storage()
@@ -107,7 +107,7 @@ async def test_history_persistence(
         await agent1.close()
 
         # Create second agent (simulating restart)
-        agent2 = HomeAgent(test_hass_with_default_entities, config, session_manager)
+        agent2 = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
         # Load history from storage
         await agent2.conversation_manager.load_from_storage()
@@ -170,7 +170,7 @@ async def test_history_token_limits(
     }
 
     with mock_llm_server.patch_aiohttp():
-        agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+        agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
         # Send several messages to exceed token limit
         messages = [
@@ -249,7 +249,7 @@ async def test_history_message_limits(
     }
 
     with mock_llm_server.patch_aiohttp():
-        agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+        agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
         # Send more messages than the limit
         messages = [
@@ -327,7 +327,7 @@ async def test_history_disabled(
     }
 
     with mock_llm_server.patch_aiohttp():
-        agent = HomeAgent(test_hass_with_default_entities, config, session_manager)
+        agent = PepaSensoryArm(test_hass_with_default_entities, config, session_manager)
 
         # Send first message
         response1 = await agent.process_message(
