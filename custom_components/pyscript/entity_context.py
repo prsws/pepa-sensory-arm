@@ -10,10 +10,10 @@
 #   csv     - CSV string ready for system-prompt injection
 #   count   - number of exposed entities
 
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import area_registry as ar
 from homeassistant.components.homeassistant.exposed_entities import async_should_expose
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 
 def _csv_field(val):
@@ -27,7 +27,7 @@ def _csv_field(val):
 def entity_context():
     entity_reg = er.async_get(hass)
     device_reg = dr.async_get(hass)
-    area_reg   = ar.async_get(hass)
+    area_reg = ar.async_get(hass)
 
     rows = []
     count = 0
@@ -40,24 +40,24 @@ def entity_context():
             continue
 
         area_name = "Unassigned"
-        aliases   = ""
-        volatile  = "false"
+        aliases = ""
+        volatile = "false"
 
         entity_entry = entity_reg.async_get(entity_id)
         if entity_entry:
 
             # Area: entity -> device -> area
-            device_id = getattr(entity_entry, 'device_id', None)
+            device_id = getattr(entity_entry, "device_id", None)
             if device_id:
                 device_entry = device_reg.async_get(device_id)
-                area_id = getattr(device_entry, 'area_id', None) if device_entry else None
+                area_id = getattr(device_entry, "area_id", None) if device_entry else None
                 if area_id:
                     area_entry = area_reg.async_get_area(area_id)
                     if area_entry:
-                        area_name = getattr(area_entry, 'name', "Unassigned")
+                        area_name = getattr(area_entry, "name", "Unassigned")
 
             # Aliases: strip ComputedNameType internal entries
-            raw_aliases = getattr(entity_entry, 'aliases', None)
+            raw_aliases = getattr(entity_entry, "aliases", None)
             if raw_aliases:
                 alias_str = ""
                 for alias in raw_aliases:
@@ -72,18 +72,24 @@ def entity_context():
             # Volatile: direct label_id comparison.
             # No registry lookup, no dotted calls. HA slugifies the label
             # name "volatile" to the id "volatile", so we match the id.
-            raw_labels = getattr(entity_entry, 'labels', None)
+            raw_labels = getattr(entity_entry, "labels", None)
             if raw_labels:
                 for label_id in raw_labels:
                     if str(label_id) == "volatile":
                         volatile = "true"
 
         name = st.attributes.get("friendly_name", entity_id)
-        row = (_csv_field(entity_id) + "," +
-               _csv_field(name)      + "," +
-               _csv_field(area_name) + "," +
-               _csv_field(aliases)   + "," +
-               volatile)
+        row = (
+            _csv_field(entity_id)
+            + ","
+            + _csv_field(name)
+            + ","
+            + _csv_field(area_name)
+            + ","
+            + _csv_field(aliases)
+            + ","
+            + volatile
+        )
         rows.append(row)
         count = count + 1
 
@@ -103,6 +109,6 @@ def entity_context():
     log.info("entity_context: {} exposed entities".format(count))
 
     return {
-        "csv":   csv_str,
+        "csv": csv_str,
         "count": count,
     }

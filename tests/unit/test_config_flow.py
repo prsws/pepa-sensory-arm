@@ -25,8 +25,10 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_MEMORY_ENABLED,
     CONF_MEMORY_EXTRACTION_ENABLED,
     CONF_MEMORY_EXTRACTION_LLM,
+    CONF_PROMPT_CUSTOM,
     CONF_PROMPT_CUSTOM_ADDITIONS,
     CONF_PROMPT_INCLUDE_LABELS,
+    CONF_PROMPT_USE_CUSTOM,
     CONF_PROMPT_USE_DEFAULT,
     CONF_SESSION_PERSISTENCE_ENABLED,
     CONF_SESSION_TIMEOUT,
@@ -37,6 +39,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_VECTOR_DB_PORT,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_PROMPT_INCLUDE_LABELS,
+    DEFAULT_PROMPT_USE_CUSTOM,
     DEFAULT_SESSION_PERSISTENCE_ENABLED,
     DEFAULT_SESSION_TIMEOUT,
     DEFAULT_STREAMING_ENABLED,
@@ -807,6 +810,113 @@ class TestPepaSensoryArmOptionsFlow:
         assert result["data"][CONF_PROMPT_USE_DEFAULT] is True
         assert result["data"]["history_enabled"] is True
         assert result["data"]["memory_enabled"] is False
+
+    async def test_prompt_settings_step_a_schema_includes_use_custom(
+        self, mock_config_entry, mock_hass
+    ):
+        """Test that step A's schema includes prompt_use_custom, defaulting to False."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        result = await options_flow.async_step_prompt_settings()
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "prompt_settings"
+        schema_keys = list(result["data_schema"].schema.keys())
+        use_custom_key = next(
+            (k for k in schema_keys if getattr(k, "schema", None) == CONF_PROMPT_USE_CUSTOM),
+            None,
+        )
+        assert use_custom_key is not None, "prompt_use_custom option not found in schema"
+        assert use_custom_key.default() == DEFAULT_PROMPT_USE_CUSTOM
+
+    async def test_prompt_settings_default_only_skips_content_step(
+        self, mock_config_entry, mock_hass
+    ):
+        """True/False row: no step B, entry is created immediately."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        user_input = {CONF_PROMPT_USE_DEFAULT: True, CONF_PROMPT_USE_CUSTOM: False}
+        result = await options_flow.async_step_prompt_settings(user_input)
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"][CONF_PROMPT_USE_DEFAULT] is True
+        assert result["data"][CONF_PROMPT_USE_CUSTOM] is False
+
+    async def test_prompt_settings_default_and_custom_advances_to_content_step(
+        self, mock_config_entry, mock_hass
+    ):
+        """True/True row: advances to step B showing only the additions field."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        user_input = {CONF_PROMPT_USE_DEFAULT: True, CONF_PROMPT_USE_CUSTOM: True}
+        result = await options_flow.async_step_prompt_settings(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "prompt_settings_content"
+        schema_keys = list(result["data_schema"].schema.keys())
+        field_names = {getattr(k, "schema", None) for k in schema_keys}
+        assert CONF_PROMPT_CUSTOM_ADDITIONS in field_names
+        assert CONF_PROMPT_CUSTOM not in field_names
+
+    async def test_prompt_settings_full_replacement_advances_to_content_step(
+        self, mock_config_entry, mock_hass
+    ):
+        """False row: advances to step B showing only the full-replacement field."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        user_input = {CONF_PROMPT_USE_DEFAULT: False, CONF_PROMPT_USE_CUSTOM: True}
+        result = await options_flow.async_step_prompt_settings(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "prompt_settings_content"
+        schema_keys = list(result["data_schema"].schema.keys())
+        field_names = {getattr(k, "schema", None) for k in schema_keys}
+        assert CONF_PROMPT_CUSTOM in field_names
+        assert CONF_PROMPT_CUSTOM_ADDITIONS not in field_names
+
+    async def test_prompt_settings_content_additions_creates_entry(
+        self, mock_config_entry, mock_hass
+    ):
+        """Full two-step flow for the True/True row creates an entry with additions."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        await options_flow.async_step_prompt_settings(
+            {CONF_PROMPT_USE_DEFAULT: True, CONF_PROMPT_USE_CUSTOM: True}
+        )
+        result = await options_flow.async_step_prompt_settings_content(
+            {CONF_PROMPT_CUSTOM_ADDITIONS: "House rule: quiet hours after 10pm."}
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"][CONF_PROMPT_USE_DEFAULT] is True
+        assert result["data"][CONF_PROMPT_USE_CUSTOM] is True
+        assert result["data"][CONF_PROMPT_CUSTOM_ADDITIONS] == "House rule: quiet hours after 10pm."
+
+    async def test_prompt_settings_content_full_replacement_creates_entry(
+        self, mock_config_entry, mock_hass
+    ):
+        """Full two-step flow for the False row creates an entry with the full prompt,
+        and forces prompt_use_custom to False in the saved data even though step A
+        posted True."""
+        options_flow = PepaSensoryArmOptionsFlow(mock_config_entry)
+        options_flow.hass = mock_hass
+
+        await options_flow.async_step_prompt_settings(
+            {CONF_PROMPT_USE_DEFAULT: False, CONF_PROMPT_USE_CUSTOM: True}
+        )
+        result = await options_flow.async_step_prompt_settings_content(
+            {CONF_PROMPT_CUSTOM: "You are a minimal test assistant."}
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["data"][CONF_PROMPT_USE_DEFAULT] is False
+        assert result["data"][CONF_PROMPT_USE_CUSTOM] is False
+        assert result["data"][CONF_PROMPT_CUSTOM] == "You are a minimal test assistant."
 
     async def test_tool_settings_success(self, mock_config_entry, mock_hass):
         """Test successful tool settings update."""

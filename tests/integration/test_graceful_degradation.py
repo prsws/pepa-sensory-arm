@@ -436,7 +436,7 @@ class TestGracefulDegradation:
         # Mock multiple component failures
         with (
             patch(
-                "custom_components.pepa_sensory_arm.context_providers.vector_db.VectorDBContextProvider"
+                "custom_components.pepa_sensory_arm.context_providers.vector_db.VectorDBContextProvider"  # noqa: E501
             ) as mock_vector_provider,
             patch("custom_components.pepa_sensory_arm.agent.core.ExternalLLMTool") as mock_ext_llm,
         ):

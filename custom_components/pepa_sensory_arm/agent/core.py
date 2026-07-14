@@ -121,18 +121,24 @@ from ..const import (
     CONF_HISTORY_PERSIST,
     CONF_LLM_MODEL,
     CONF_MEMORY_EXTRACTION_ENABLED,
+    CONF_PROMPT_CUSTOM,
     CONF_PROMPT_CUSTOM_ADDITIONS,
     CONF_PROMPT_INCLUDE_LABELS,
+    CONF_PROMPT_USE_CUSTOM,
     CONF_PROMPT_USE_DEFAULT,
     CONF_THINKING_ENABLED,
     CONF_TOOLS_CUSTOM,
     CONF_TOOLS_MAX_CALLS_PER_TURN,
     CONF_TOOLS_TIMEOUT,
+    DEFAULT_EXTERNAL_LLM_ENABLED,
     DEFAULT_HISTORY_MAX_MESSAGES,
     DEFAULT_HISTORY_MAX_TOKENS,
     DEFAULT_MEMORY_EXTRACTION_ENABLED,
+    DEFAULT_PROMPT_HEAD,
     DEFAULT_PROMPT_INCLUDE_LABELS,
-    DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_PROMPT_TAIL,
+    DEFAULT_PROMPT_USE_CUSTOM,
+    DEFAULT_PROMPT_USE_DEFAULT,
     DEFAULT_THINKING_ENABLED,
     DEFAULT_TOOLS_MAX_CALLS_PER_TURN,
     DOMAIN,
@@ -140,6 +146,7 @@ from ..const import (
     EVENT_CONVERSATION_STARTED,
     EVENT_ERROR,
     EVENT_STREAMING_ERROR,
+    PROMPT_TRAILER,
     TOOL_QUERY_EXTERNAL_LLM,
 )
 from ..context_manager import ContextManager
@@ -661,23 +668,39 @@ class PepaSensoryArm(
             "current_device_id": device_id,
             "conversation_id": conversation_id,
             "user_message": user_message,
+            "external_llm_enabled": self.config.get(
+                CONF_EXTERNAL_LLM_ENABLED, DEFAULT_EXTERNAL_LLM_ENABLED
+            ),
         }
 
-        if not self.config.get(CONF_PROMPT_USE_DEFAULT, True):
-            # Use only custom prompt if default is disabled
-            custom_prompt = self.config.get(CONF_PROMPT_CUSTOM_ADDITIONS, "")
-            return self._render_template(custom_prompt, template_vars)
+        use_default = self.config.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT)
+        use_custom = self.config.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM)
+        additions = self.config.get(CONF_PROMPT_CUSTOM_ADDITIONS, "")
+        full_prompt = self.config.get(CONF_PROMPT_CUSTOM, "")
 
-        # Start with default prompt and render with entity_context
-        prompt = self._render_template(DEFAULT_SYSTEM_PROMPT, template_vars)
+        if use_custom and not additions.strip():
+            use_custom = False
 
-        # Add custom additions if provided
-        custom_additions = self.config.get(CONF_PROMPT_CUSTOM_ADDITIONS, "")
-        if custom_additions:
-            rendered_additions = self._render_template(custom_additions, template_vars)
-            prompt += f"\n\n## Additional Context\n\n{rendered_additions}"
+        if not use_default:
+            if not full_prompt.strip():
+                _LOGGER.error(
+                    "prompt_use_default is False but prompt_custom is empty; "
+                    "falling back to the default system prompt so a request is "
+                    "never sent without a system prompt."
+                )
+                use_default = True
+                use_custom = False
+            else:
+                return self._render_template(full_prompt, template_vars)
 
-        return prompt
+        if use_custom:
+            assembled = (
+                f"{DEFAULT_PROMPT_HEAD}\n\n{additions}\n{DEFAULT_PROMPT_TAIL}\n\n{PROMPT_TRAILER}"
+            )
+        else:
+            assembled = f"{DEFAULT_PROMPT_HEAD}\n{DEFAULT_PROMPT_TAIL}\n\n{PROMPT_TRAILER}"
+
+        return self._render_template(assembled, template_vars)
 
     def _render_template(self, template_str: str, variables: dict[str, Any] | None = None) -> str:
         """Render a Jinja2 template string.

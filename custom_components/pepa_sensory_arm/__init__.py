@@ -19,6 +19,7 @@ from .agent import PepaSensoryArm
 from .const import (
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_SESSION_PERSISTENCE_ENABLED,
     CONF_SESSION_TIMEOUT,
     CONF_TOOLS_CUSTOM,
@@ -28,6 +29,7 @@ from .const import (
     CONF_VECTOR_DB_PORT,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_MEMORY_ENABLED,
+    DEFAULT_PROMPT_USE_DEFAULT,
     DEFAULT_SESSION_PERSISTENCE_ENABLED,
     DEFAULT_SESSION_TIMEOUT,
     DEFAULT_VECTOR_DB_EMBEDDING_BASE_URL,
@@ -77,6 +79,21 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Merge config data
     config = dict(entry.data) | dict(entry.options)
+
+    # The default system prompt's device tables read sensor.pepa_entity_context,
+    # published by the bundled pyscript (custom_components/pyscript/entities_list.py,
+    # entity_context.py). There is no fallback to exposed_entities - warn if it's
+    # missing so the integration doesn't silently send an empty device catalog.
+    if config.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT):
+        entity_context_state = hass.states.get("sensor.pepa_entity_context")
+        if entity_context_state is None or not entity_context_state.attributes.get("csv"):
+            _LOGGER.warning(
+                "The default system prompt requires the bundled pyscript "
+                "entity-context sensor (sensor.pepa_entity_context), which is "
+                "missing or has no data. Install/enable the pyscript integration "
+                "with the bundled scripts, or the device catalog in the system "
+                "prompt will be empty. See the documentation for setup details."
+            )
 
     # Also merge YAML config for custom tools (if present)
     # This allows users to define custom tools in configuration.yaml

@@ -260,6 +260,28 @@ Each device maintains its own conversation context:
 - Bedroom satellite has independent context
 - Same user on different devices = different conversations
 
+## System Prompt
+
+The system prompt is configured via **System Prompt** in the integration's options, with two independent toggles that together produce four states:
+
+| Use Default | Append Custom Additions | Result |
+|---|---|---|
+| On | Off | Built-in default prompt only |
+| On | On | Default prompt, with your additions spliced in **before** the device tables (inside the cacheable prefix) |
+| Off | *(ignored)* | Your full-replacement prompt, used verbatim |
+
+- **Default mode** builds the prompt from a frozen instructions block followed by the device catalog and live entity states, and automatically appends the trailer line that hands off to the model. This layering keeps the instructions/device-catalog portion identical between turns so it can be served from an LLM prefix cache — only the live-state section changes per utterance.
+- **Additions** (when enabled) are inserted verbatim, with no automatic heading, immediately before the device tables — still inside the cached prefix. Supply your own heading if you want one.
+- **Full replacement** disables the default prompt entirely. You own the entire prompt text, including any device context and trailer — nothing is prepended or appended. If left empty, the integration logs an error and falls back to the default prompt rather than sending an empty system prompt.
+
+### Cache discipline warning
+
+Both the additions and full-replacement fields are Jinja-rendered, exactly like the default prompt. Any volatile template call — `now()`, `states()`, `state_attr()`, etc. — placed in the **additions** field runs on every turn and breaks the prefix cache for the entire prompt, measurably slowing every response. Whatever you put in either field is your responsibility; there is no sanitization or guardrail against this.
+
+### Pyscript requirement (default mode only)
+
+The default prompt's device catalog and live-state tables read `sensor.pepa_entity_context`, published by the bundled pyscript scripts (`custom_components/pyscript/entities_list.py` and `entity_context.py`). **There is no fallback** to Home Assistant's `exposed_entities` if this sensor is missing or empty — the device tables will simply be empty, and the integration logs a startup warning when this happens. Make sure the pyscript integration is installed and the bundled scripts are enabled if you use the default prompt.
+
 ## Contributing
 
 Contributions are welcome! Please:
