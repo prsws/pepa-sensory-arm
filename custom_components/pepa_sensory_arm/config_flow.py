@@ -955,9 +955,7 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
             if not use_default:
                 # use_custom only applies to default-prompt mode
                 self._prompt_step_a[CONF_PROMPT_USE_CUSTOM] = False
-            use_custom = self._prompt_step_a.get(
-                CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM
-            )
+            use_custom = self._prompt_step_a.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM)
 
             if use_default and not use_custom:
                 updated_options = {**current_options, **self._prompt_step_a}

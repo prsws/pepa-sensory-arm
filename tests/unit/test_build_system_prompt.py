@@ -165,9 +165,7 @@ class TestEmptyFullPromptFallback:
         with caplog.at_level(logging.ERROR):
             result = agent._build_system_prompt()
 
-        assert any(
-            "prompt_custom is empty" in record.getMessage() for record in caplog.records
-        )
+        assert any("prompt_custom is empty" in record.getMessage() for record in caplog.records)
         # Falls back to the True/False row, not True/True - additions are not spliced in.
         assert "should be ignored by the fallback" not in result
         assert "DEVICE CATALOG" in result
@@ -220,20 +218,14 @@ class TestTrailerNotInPromptConstants:
 
     def test_trailer_appears_exactly_once_in_const_source(self):
         const_path = (
-            Path(__file__).parents[2]
-            / "custom_components"
-            / "pepa_sensory_arm"
-            / "const.py"
+            Path(__file__).parents[2] / "custom_components" / "pepa_sensory_arm" / "const.py"
         )
         source = const_path.read_text()
         assert source.count(PROMPT_TRAILER) == 1
 
     def test_default_system_prompt_removed(self):
         const_path = (
-            Path(__file__).parents[2]
-            / "custom_components"
-            / "pepa_sensory_arm"
-            / "const.py"
+            Path(__file__).parents[2] / "custom_components" / "pepa_sensory_arm" / "const.py"
         )
         source = const_path.read_text()
         assert "DEFAULT_SYSTEM_PROMPT" not in source
