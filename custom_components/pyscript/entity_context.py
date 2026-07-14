@@ -10,10 +10,10 @@
 #   csv     - CSV string ready for system-prompt injection
 #   count   - number of exposed entities
 
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import area_registry as ar
 from homeassistant.components.homeassistant.exposed_entities import async_should_expose
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 
 def _csv_field(val):

@@ -21,10 +21,10 @@
 # Refresh : on HA start, on entity_registry change, and a 10-min backstop
 #           (expose-toggle changes don't always emit a registry event)
 
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import area_registry as ar
 from homeassistant.components.homeassistant.exposed_entities import async_should_expose
+from homeassistant.helpers import area_registry as ar
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 
 SENSOR = "sensor.pepa_entity_context"
 
