@@ -65,8 +65,10 @@ from .const import (
     CONF_MEMORY_MIN_IMPORTANCE,
     CONF_MEMORY_MIN_WORDS,
     CONF_OPENAI_API_KEY,
+    CONF_PROMPT_CUSTOM,
     CONF_PROMPT_CUSTOM_ADDITIONS,
     CONF_PROMPT_INCLUDE_LABELS,
+    CONF_PROMPT_USE_CUSTOM,
     CONF_PROMPT_USE_DEFAULT,
     CONF_SESSION_PERSISTENCE_ENABLED,
     CONF_SESSION_TIMEOUT,
@@ -118,6 +120,7 @@ from .const import (
     DEFAULT_MEMORY_MIN_WORDS,
     DEFAULT_NAME,
     DEFAULT_PROMPT_INCLUDE_LABELS,
+    DEFAULT_PROMPT_USE_CUSTOM,
     DEFAULT_PROMPT_USE_DEFAULT,
     DEFAULT_SESSION_PERSISTENCE_ENABLED,
     DEFAULT_SESSION_TIMEOUT,
@@ -480,6 +483,7 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
             config_entry: The config entry to manage options for
         """
         self._config_entry = config_entry
+        self._prompt_step_a: dict[str, Any] | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -927,7 +931,12 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
     async def async_step_prompt_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Configure system prompt settings.
+        """Configure system prompt settings (step A: mode booleans).
+
+        Collects prompt_use_default, prompt_use_custom, and prompt_include_labels.
+        Depending on the combination selected, either finalizes immediately
+        (default prompt, no additions) or advances to
+        `async_step_prompt_settings_content` to collect the relevant text field.
 
         Args:
             user_input: User-provided configuration
@@ -935,12 +944,27 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
         Returns:
             FlowResult indicating completion or next step
         """
-        if user_input is not None:
-            updated_options = {**self._config_entry.options, **user_input}
-            return self.async_create_entry(title="", data=updated_options)
-
         current_options = self._config_entry.options
         current_data = self._config_entry.data
+
+        if user_input is not None:
+            self._prompt_step_a = dict(user_input)
+            use_default = self._prompt_step_a.get(
+                CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT
+            )
+            if not use_default:
+                # use_custom only applies to default-prompt mode
+                self._prompt_step_a[CONF_PROMPT_USE_CUSTOM] = False
+            use_custom = self._prompt_step_a.get(
+                CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM
+            )
+
+            if use_default and not use_custom:
+                updated_options = {**current_options, **self._prompt_step_a}
+                self._prompt_step_a = None
+                return self.async_create_entry(title="", data=updated_options)
+
+            return await self.async_step_prompt_settings_content()
 
         return self.async_show_form(
             step_id="prompt_settings",
@@ -953,6 +977,13 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
                             current_data.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT),
                         ),
                     ): bool,
+                    vol.Required(
+                        CONF_PROMPT_USE_CUSTOM,
+                        default=current_options.get(
+                            CONF_PROMPT_USE_CUSTOM,
+                            current_data.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM),
+                        ),
+                    ): bool,
                     vol.Optional(
                         CONF_PROMPT_INCLUDE_LABELS,
                         default=current_options.get(
@@ -962,6 +993,45 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
                             ),
                         ),
                     ): bool,
+                }
+            ),
+        )
+
+    async def async_step_prompt_settings_content(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Configure system prompt settings (step B: prompt text content).
+
+        Shown only when step A's answers require it. Displays the additions
+        textarea (default+custom mode) or the full-replacement textarea
+        (default disabled), depending on `self._prompt_step_a`.
+
+        Args:
+            user_input: User-provided configuration
+
+        Returns:
+            FlowResult indicating completion
+        """
+        current_options = self._config_entry.options
+        current_data = self._config_entry.data
+        step_a = self._prompt_step_a or {}
+        use_default = step_a.get(
+            CONF_PROMPT_USE_DEFAULT,
+            current_options.get(
+                CONF_PROMPT_USE_DEFAULT,
+                current_data.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT),
+            ),
+        )
+
+        if user_input is not None:
+            updated_options = {**current_options, **step_a, **user_input}
+            self._prompt_step_a = None
+            return self.async_create_entry(title="", data=updated_options)
+
+        if use_default:
+            # True/True row: default prompt + additions spliced in
+            schema = vol.Schema(
+                {
                     vol.Optional(
                         CONF_PROMPT_CUSTOM_ADDITIONS,
                         description={
@@ -972,7 +1042,26 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
                         },
                     ): selector.TemplateSelector(),
                 }
-            ),
+            )
+        else:
+            # False row: full prompt replacement
+            schema = vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_PROMPT_CUSTOM,
+                        description={
+                            "suggested_value": current_options.get(
+                                CONF_PROMPT_CUSTOM,
+                                current_data.get(CONF_PROMPT_CUSTOM, ""),
+                            )
+                        },
+                    ): selector.TemplateSelector(),
+                }
+            )
+
+        return self.async_show_form(
+            step_id="prompt_settings_content",
+            data_schema=schema,
             description_placeholders={
                 "example_addition": (
                     "Additional context about my home:\n"

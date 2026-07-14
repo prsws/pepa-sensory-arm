@@ -6,3 +6,6 @@ exclude =
     __pycache__,
     venv,
     .mypy_cache
+per-file-ignores =
+    # Verbatim, field-tested default system prompt content - do not reflow.
+    custom_components/pepa_sensory_arm/const.py:E501
