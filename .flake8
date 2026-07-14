@@ -9,3 +9,6 @@ exclude =
 per-file-ignores =
     # Verbatim, field-tested default system prompt content - do not reflow.
     custom_components/pepa_sensory_arm/const.py:E501
+    # pyscript injects hass/log/state/service and the trigger decorators as
+    # runtime globals; flake8 can't see them statically.
+    custom_components/pyscript/*.py:F821
