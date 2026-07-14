@@ -19,7 +19,7 @@
 import time
 
 _BC_SAT_PREFIX = "assist_satellite."
-_BC_LLM_THRESHOLD_S = 2.0   # resolution slower than this => LLM path; else fast
+_BC_LLM_THRESHOLD_S = 2.0  # resolution slower than this => LLM path; else fast
 
 # in-flight interactions, keyed by satellite entity_id (module globals persist)
 _BC_ACTIVE = {}
@@ -52,8 +52,13 @@ def _bc_on_state(**kwargs):
     rec = _BC_ACTIVE.get(entity_id)
     if rec is None:
         # joined mid-cycle; start a partial envelope so we don't drop it
-        rec = {"listening": None, "processing": None, "responding": None,
-               "actions": [], "epoch": time.time()}
+        rec = {
+            "listening": None,
+            "processing": None,
+            "responding": None,
+            "actions": [],
+            "epoch": time.time(),
+        }
         _BC_ACTIVE[entity_id] = rec
 
     if phase == "processing":
@@ -91,7 +96,7 @@ def _bc_dur(a, b):
 
 
 def _bc_emit(entity_id, rec):
-    listening_s  = _bc_dur(rec.get("listening"), rec.get("processing"))
+    listening_s = _bc_dur(rec.get("listening"), rec.get("processing"))
     resolution_s = _bc_dur(rec.get("processing"), rec.get("responding"))
 
     path = "unknown"
@@ -111,5 +116,8 @@ def _bc_emit(entity_id, rec):
     }
 
     event.fire("pepa_observation", observation=obs)
-    log.info("pepa_observation: path={} resolution_s={} actions={} sat={}".format(
-        path, resolution_s, len(obs["actions"]), entity_id))
+    log.info(
+        "pepa_observation: path={} resolution_s={} actions={} sat={}".format(
+            path, resolution_s, len(obs["actions"]), entity_id
+        )
+    )

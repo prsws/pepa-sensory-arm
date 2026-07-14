@@ -74,7 +74,7 @@ def _el_build():
     """Build the static-column CSV. Returns (csv_str, count)."""
     entity_reg = er.async_get(hass)
     device_reg = dr.async_get(hass)
-    area_reg   = ar.async_get(hass)
+    area_reg = ar.async_get(hass)
 
     rows = []
     count = 0
@@ -87,24 +87,24 @@ def _el_build():
             continue
 
         area_name = "Unassigned"
-        aliases   = ""
-        volatile  = "false"
+        aliases = ""
+        volatile = "false"
 
         entity_entry = entity_reg.async_get(entity_id)
         if entity_entry:
 
             # Area: entity -> device -> area
-            device_id = getattr(entity_entry, 'device_id', None)
+            device_id = getattr(entity_entry, "device_id", None)
             if device_id:
                 device_entry = device_reg.async_get(device_id)
-                area_id = getattr(device_entry, 'area_id', None) if device_entry else None
+                area_id = getattr(device_entry, "area_id", None) if device_entry else None
                 if area_id:
                     area_entry = area_reg.async_get_area(area_id)
                     if area_entry:
-                        area_name = getattr(area_entry, 'name', "Unassigned")
+                        area_name = getattr(area_entry, "name", "Unassigned")
 
             # Aliases: strip ComputedNameType internal entries
-            raw_aliases = getattr(entity_entry, 'aliases', None)
+            raw_aliases = getattr(entity_entry, "aliases", None)
             if raw_aliases:
                 alias_str = ""
                 for alias in raw_aliases:
@@ -117,23 +117,31 @@ def _el_build():
                 aliases = alias_str
 
             # Volatile: direct label_id comparison (HA slugifies "volatile" -> id "volatile")
-            raw_labels = getattr(entity_entry, 'labels', None)
+            raw_labels = getattr(entity_entry, "labels", None)
             if raw_labels:
                 for label_id in raw_labels:
                     if str(label_id) == "volatile":
                         volatile = "true"
 
-        name     = st.attributes.get("friendly_name", entity_id)
-        domain   = _el_domain(entity_id)
+        name = st.attributes.get("friendly_name", entity_id)
+        domain = _el_domain(entity_id)
         services = _el_services(domain)
 
-        row = (_el_csv_field(entity_id) + "," +
-               _el_csv_field(name)      + "," +
-               _el_csv_field(area_name) + "," +
-               _el_csv_field(aliases)   + "," +
-               _el_csv_field(domain)    + "," +
-               _el_csv_field(services)  + "," +
-               volatile)
+        row = (
+            _el_csv_field(entity_id)
+            + ","
+            + _el_csv_field(name)
+            + ","
+            + _el_csv_field(area_name)
+            + ","
+            + _el_csv_field(aliases)
+            + ","
+            + _el_csv_field(domain)
+            + ","
+            + _el_csv_field(services)
+            + ","
+            + volatile
+        )
         rows.append(row)
         count = count + 1
 
@@ -156,9 +164,7 @@ def _el_build():
 def _el_publish():
     """Build and publish the static CSV to the sensor attribute for prompt injection."""
     csv_str, count = _el_build()
-    state.set(SENSOR, count,
-              csv=csv_str, count=count,
-              friendly_name="Pepa Entity Context")
+    state.set(SENSOR, count, csv=csv_str, count=count, friendly_name="Pepa Entity Context")
     log.info("entities_list: published {} exposed entities to {}".format(count, SENSOR))
     return csv_str, count
 
