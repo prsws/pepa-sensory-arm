@@ -5,7 +5,7 @@ from typing import Final
 # Domain and component info
 DOMAIN: Final = "pepa_sensory_arm"
 DEFAULT_NAME: Final = "Pepa Sensory Arm"
-VERSION: Final = "0.9.5"
+VERSION: Final = "0.1.0"
 
 # Configuration keys - LLM Configuration
 CONF_LLM_BASE_URL: Final = "llm_base_url"
