@@ -931,37 +931,27 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
     async def async_step_prompt_settings(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Configure system prompt settings (step A: mode booleans).
+        """Configure system prompt settings (step A: prompt_use_default).
 
-        Collects prompt_use_default, prompt_use_custom, and prompt_include_labels.
-        Depending on the combination selected, either finalizes immediately
-        (default prompt, no additions) or advances to
-        `async_step_prompt_settings_content` to collect the relevant text field.
+        Collects only prompt_use_default and prompt_include_labels. Always
+        advances to `async_step_prompt_settings_content`, whose schema
+        branches on prompt_use_default: prompt_use_custom is only ever
+        shown/settable there when prompt_use_default is True, so the two
+        can never conflict in saved data (no live cross-field JS needed --
+        Home Assistant's options-flow forms don't support that; this
+        structural split is the equivalent guarantee).
 
         Args:
             user_input: User-provided configuration
 
         Returns:
-            FlowResult indicating completion or next step
+            FlowResult indicating next step
         """
         current_options = self._config_entry.options
         current_data = self._config_entry.data
 
         if user_input is not None:
             self._prompt_step_a = dict(user_input)
-            use_default = self._prompt_step_a.get(
-                CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT
-            )
-            if not use_default:
-                # use_custom only applies to default-prompt mode
-                self._prompt_step_a[CONF_PROMPT_USE_CUSTOM] = False
-            use_custom = self._prompt_step_a.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM)
-
-            if use_default and not use_custom:
-                updated_options = {**current_options, **self._prompt_step_a}
-                self._prompt_step_a = None
-                return self.async_create_entry(title="", data=updated_options)
-
             return await self.async_step_prompt_settings_content()
 
         return self.async_show_form(
@@ -973,13 +963,6 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
                         default=current_options.get(
                             CONF_PROMPT_USE_DEFAULT,
                             current_data.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT),
-                        ),
-                    ): bool,
-                    vol.Required(
-                        CONF_PROMPT_USE_CUSTOM,
-                        default=current_options.get(
-                            CONF_PROMPT_USE_CUSTOM,
-                            current_data.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM),
                         ),
                     ): bool,
                     vol.Optional(
@@ -1000,9 +983,11 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
     ) -> config_entries.ConfigFlowResult:
         """Configure system prompt settings (step B: prompt text content).
 
-        Shown only when step A's answers require it. Displays the additions
-        textarea (default+custom mode) or the full-replacement textarea
-        (default disabled), depending on `self._prompt_step_a`.
+        Branches on step A's prompt_use_default answer. When True, shows
+        prompt_use_custom plus the additions textarea (both meaningful only
+        in default-prompt mode). When False, shows only the full-replacement
+        textarea and prompt_use_custom is force-saved as False, since it has
+        no effect and was never offered in this branch.
 
         Args:
             user_input: User-provided configuration
@@ -1022,14 +1007,23 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
         )
 
         if user_input is not None:
+            if not use_default:
+                user_input[CONF_PROMPT_USE_CUSTOM] = False
             updated_options = {**current_options, **step_a, **user_input}
             self._prompt_step_a = None
             return self.async_create_entry(title="", data=updated_options)
 
         if use_default:
-            # True/True row: default prompt + additions spliced in
+            # True/* row: default prompt, optionally with additions spliced in
             schema = vol.Schema(
                 {
+                    vol.Required(
+                        CONF_PROMPT_USE_CUSTOM,
+                        default=current_options.get(
+                            CONF_PROMPT_USE_CUSTOM,
+                            current_data.get(CONF_PROMPT_USE_CUSTOM, DEFAULT_PROMPT_USE_CUSTOM),
+                        ),
+                    ): bool,
                     vol.Optional(
                         CONF_PROMPT_CUSTOM_ADDITIONS,
                         description={

@@ -274,26 +274,24 @@
         "title": "System Prompt",
         "description": "Configure the system prompt that guides the LLM's behavior.",
         "data": {
-          "use_default_prompt": "Use Default System Prompt",
-          "prompt_use_custom": "Append Custom Additions",
-          "prompt_include_labels": "Include Entity/Device Labels",
-          "custom_prompt_additions": "Custom Prompt Additions"
+          "prompt_use_default": "Use Default Prompt?",
+          "prompt_include_labels": "Include Entity/Device Labels"
         },
         "data_description": {
-          "use_default_prompt": "Use Pepa Sensory Arm's built-in system prompt",
-          "prompt_use_custom": "Append custom additions after the built-in instructions (default prompt mode only).",
-          "prompt_include_labels": "Include entity and device labels in the system prompt for better context",
-          "custom_prompt_additions": "Additional instructions to append to the system prompt"
+          "prompt_use_default": "If unchecked, the LLM receives only the prompt you provide on the next step — no built-in instructions or device catalog are added automatically.",
+          "prompt_include_labels": "Include entity and device labels in the system prompt for better context"
         }
       },
       "prompt_settings_content": {
         "title": "System Prompt Content",
-        "description": "Shown based on your previous choices: default-mode additions are spliced into the cacheable prefix before the device tables; full-replacement mode is used verbatim with no automatic trailer.",
+        "description": "Shown based on your previous choice: with the default prompt, choose whether to append custom additions; with the default prompt disabled, provide the full replacement prompt.",
         "data": {
+          "prompt_use_custom": "Append Custom Additions?",
           "prompt_custom_additions": "Custom Prompt Additions",
           "prompt_custom": "Full Replacement Prompt"
         },
         "data_description": {
+          "prompt_use_custom": "If checked, the text below is spliced into the cacheable prefix of the default prompt.",
           "prompt_custom_additions": "Appended into the cacheable section of the default prompt. Jinja is rendered — see docs before using template calls.",
           "prompt_custom": "Full replacement system prompt. You are responsible for the entire prompt including device context and trailer."
         }
