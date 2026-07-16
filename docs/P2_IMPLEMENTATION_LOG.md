@@ -150,7 +150,34 @@ Verified: unit 1526, offline integration 268 (baseline), live-service tests coll
 
 ---
 
-## 2026-07-16 — Open discrepancy: Chroma placement default
+## 2026-07-16 — Finding 6: there is a seventh consumer
+
+**Falsifies:** spec §5's "six call sites", and its own warning that the conduit is "the easiest to miss".
+
+`context_manager.py::set_memory_provider` constructs `MemoryContextProvider(memory_manager=...)`. §5 lists `context_providers/memory.py` as consumer #4, but that row names the module that *uses* memory, not the site that *wires* it. The wiring site is a distinct file and took the parameter as `Any`, so it evaded both the import scan and the method-call grep — the same evasion the spec correctly diagnosed for `agent/core.py`, present twice and caught once.
+
+It was found by mypy, not by grep: renaming the provider's parameter made the call site a type error. Worth noting for the remaining lanes — a typed seam finds its own consumers, an `Any`-typed one does not.
+
+Resolved: `set_memory_provider(memory: MemoryInterface)`, provider parameter renamed to `memory`.
+
+## 2026-07-16 — Commits 4 and 5 landed: wiring and consumers
+
+**Commit 4** — `hass.data[...]["memory"]`, typed `MemoryInterface`, is the handle consumers read. The legacy `"memory_manager"` key remains for one release as a deprecated alias, and `__init__.py`'s unload still reaches the concrete manager for `async_shutdown` deliberately: lifecycle is a backend concern, not part of the contract.
+
+**Commit 5** — all seven consumers migrated. Notable decisions:
+
+- **`StoreMemoryTool` → `fast_track()`.** An LLM tool write is the resident asking to be remembered, so source is forced to `explicit_user` and trust to 1.0. Trust is deliberately not an LLM-settable parameter: a model that can set its own credibility has no credibility.
+- **`RecallMemoryTool` now formats trust and source** into the result text instead of importance, so the model can hedge on a 0.5-trust inference rather than asserting it. Retrieval is not endorsement, made literal in the tool output.
+- **`min_importance` is filtered by callers, not by `recall()`.** The context provider and the search service both used to pass `min_importance` into the backend search. The contract has no importance filter, and `min_trust` is **not** its equivalent — passing one as the other would silently drop trustworthy-but-unremarkable memories (a fact the resident stated outright, kept at importance 0.1, would vanish). Both now filter post-recall on `metadata["importance"]`, preserving behavior exactly. A regression test pins the distinction.
+- **`relevance_score` carried through `metadata`.** `search_memories` sets it on its results and the search service reports it; `MemoryRecord` has no field for it, so `_to_record()` carries it as a backend extra rather than letting the service response silently lose a field.
+
+### Tests: two obsolete tests replaced rather than deleted
+
+`test_format_memories_missing_fields` and `test_execute_handles_missing_fields` fed dicts lacking `type`/`content` and asserted the formatter defaulted them. `MemoryRecord` requires both, so that failure mode is now unrepresentable rather than handled. Both were replaced with tests that pin *why* the old ones are gone — deleting them silently would have looked like lost coverage.
+
+One test was found asserting on a phantom: `test_chromadb_failure_graceful_degradation` set `side_effect` on `factory._client`, an attribute the factory does not have. `MagicMock` auto-created it, the failure never fired, and the test passed without exercising degradation at all. It now fails at the real path.
+
+Verified: unit 1540, offline integration 268 (baseline), live-service collect 14, zero new mypy errors, AC#4 and both AC#6 scans green.
 
 Ledger §2.2 states Chroma placement defaults to `embedded` ("zero-infrastructure for public HACS users"), optional `remote`. Spec §4.1 states `DEFAULT_CHROMA_PLACEMENT = CHROMA_PLACEMENT_REMOTE`, with the embedded flip gated on P6's in-VM benchmark, and §2 routes the flip out of scope.
 

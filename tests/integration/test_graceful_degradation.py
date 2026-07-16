@@ -196,7 +196,7 @@ class TestGracefulDegradation:
         agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Verify memory manager is None (not initialized in test fixture)
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
         # Mock LLM to return a response
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
@@ -456,7 +456,7 @@ class TestGracefulDegradation:
                 assert agent is not None
 
                 # Memory manager should be None (not provided in fixture)
-                assert agent.memory_manager is None
+                assert agent.memory is None
 
                 # Verify errors were logged for failures
                 error_messages = [
@@ -587,9 +587,9 @@ class TestGracefulDegradation:
         agent = PepaSensoryArm(mock_hass, config, session_manager)
 
         # Mock a memory manager that will be set
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock(side_effect=Exception("Memory storage failed"))
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock(side_effect=Exception("Memory storage failed"))
+        agent._memory = mock_memory
 
         # Mock primary LLM to succeed
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):

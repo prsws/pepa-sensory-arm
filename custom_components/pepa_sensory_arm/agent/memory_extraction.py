@@ -105,7 +105,7 @@ Expected Host Class Attributes:
     - tool_handler: ToolHandler
         Tool handler for executing query_external_llm tool
 
-    - memory_manager: Any (property)
+    - memory: MemoryInterface | None (property)
         MemoryManager instance for storing extracted memories
 
     - _call_llm(): Async method (from LLMMixin)
@@ -208,6 +208,7 @@ from ..const import (
 )
 from ..helpers import strip_thinking_blocks
 from ..memory.validator import MemoryValidator
+from ..memory_interface import MemoryInterface
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -224,7 +225,7 @@ class MemoryExtractionMixin:
     - hass: HomeAssistant - Home Assistant instance
     - config: dict[str, Any] - Configuration dictionary
     - tool_handler: ToolHandler - Tool handler instance
-    - memory_manager: Any - Memory manager property
+    - memory: MemoryInterface | None - the memory backend
     """
 
     hass: "HomeAssistant"
@@ -233,8 +234,8 @@ class MemoryExtractionMixin:
     _memory_validator: MemoryValidator | None = None
 
     @property
-    def memory_manager(self) -> Any:
-        """Get memory manager (provided by host class)."""
+    def memory(self) -> "MemoryInterface | None":
+        """Get the memory backend (provided by host class)."""
         ...
 
     @property
@@ -545,12 +546,21 @@ Return ONLY valid JSON, no other text:
                     content = memory_data["content"]
                     memory_type = memory_data.get("type", "fact")
 
-                    memory_id = await self.memory_manager.add_memory(
+                    # source=behavioral: this is inferred from watching the
+                    # conversation, not something the resident stated. trust=None
+                    # takes the backend default for the source -- the extraction
+                    # pipeline does not get to decide how much it is believed.
+                    memory = self.memory
+                    if memory is None:
+                        break
+                    memory_id = await memory.write(
                         content=content,
-                        memory_type=memory_type,
+                        category=memory_type,
+                        source="behavioral",
+                        trust=None,
                         conversation_id=conversation_id,
-                        importance=memory_data.get("importance", 0.5),
                         metadata={
+                            "importance": memory_data.get("importance", 0.5),
                             "entities_involved": memory_data.get("entities", []),
                             "topics": memory_data.get("topics", []),
                             "extraction_method": "automatic",
@@ -622,7 +632,7 @@ Return ONLY valid JSON, no other text:
                 return
 
             # Check if memory manager is available
-            if self.memory_manager is None:
+            if self.memory is None:
                 _LOGGER.debug("Memory manager not available, skipping extraction")
                 return
 

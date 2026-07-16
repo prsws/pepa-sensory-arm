@@ -99,7 +99,7 @@ class TestDisabledFeatures:
         agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory manager is None
-        assert agent.memory_manager is None, "MemoryManager should be None when memory is disabled"
+        assert agent.memory is None, "MemoryManager should be None when memory is disabled"
 
         # Force tool registration
         agent._ensure_tools_registered()
@@ -129,7 +129,7 @@ class TestDisabledFeatures:
         agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory manager is None
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
         # Mock LLM call
         with patch.object(agent, "_call_llm", return_value=mock_llm_response):
@@ -143,7 +143,7 @@ class TestDisabledFeatures:
             assert len(response) > 0
 
         # Memory manager should still be None (never initialized)
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
     async def test_memory_extraction_disabled_skips_extraction(
         self, mock_hass, base_config, mock_llm_response, caplog, mock_session_manager
@@ -225,7 +225,7 @@ class TestDisabledFeatures:
         await asyncio.sleep(0.1)
 
         # Verify memory manager is None
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
         # Extraction could be called but should exit early since memory is disabled
         # The fixture already patches this, so this test is mainly verifying memory_manager is None
@@ -401,9 +401,9 @@ class TestDisabledFeatures:
         agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Set up a mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock()
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock()
+        agent._memory = mock_memory
 
         # Mock execute_tool to track if external LLM is called
         with patch.object(
@@ -463,7 +463,7 @@ class TestDisabledFeatures:
         agent = PepaSensoryArm(mock_hass, config, mock_session_manager)
 
         # Verify memory is disabled
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
         # Force tool registration
         agent._ensure_tools_registered()
@@ -555,7 +555,7 @@ class TestDisabledFeatures:
 
         Verifies:
         - If CONF_MEMORY_ENABLED=False, extraction exits early
-        - If memory_manager is None, extraction exits early
+        - If the memory backend is None, extraction exits early
         - Both checks prevent extraction from proceeding
         """
         caplog.set_level(logging.DEBUG)
@@ -601,7 +601,7 @@ class TestDisabledFeatures:
         }
 
         agent2 = PepaSensoryArm(mock_hass, config2, mock_session_manager)
-        assert agent2.memory_manager is None  # Not provided in fixture
+        assert agent2.memory is None  # Not provided in fixture
 
         call_count2 = [0]
 
@@ -645,7 +645,7 @@ class TestDisabledFeatures:
         agent._ensure_tools_registered()
 
         # Verify memory is disabled
-        assert agent.memory_manager is None
+        assert agent.memory is None
 
         # Verify core tools are registered
         registered_tools = agent.tool_handler.get_registered_tools()

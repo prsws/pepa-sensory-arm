@@ -1210,9 +1210,9 @@ async def test_memory_extraction_llm_local(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock()
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock()
+        agent._memory = mock_memory
 
         # Mock the local LLM extraction call
         with patch.object(
@@ -1302,9 +1302,9 @@ async def test_memory_extraction_llm_external(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock()
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock()
+        agent._memory = mock_memory
 
         # Mock the tool handler to capture external LLM call
         with patch.object(
@@ -1967,10 +1967,10 @@ async def test_memory_extraction_event_respects_emit_events(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock(return_value="memory_id_123")
-        mock_memory_manager._is_transient_state = MagicMock(return_value=False)
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock(return_value="memory_id_123")
+        mock_memory._is_transient_state = MagicMock(return_value=False)
+        agent._memory = mock_memory
 
         # Track events
         events_fired = []
@@ -2069,7 +2069,7 @@ async def test_memory_extraction_event_respects_emit_events(
 
             # Verify memory was still stored (functionality works)
             assert (
-                mock_memory_manager.add_memory.call_count == 2
+                mock_memory.write.call_count == 2
             ), "Memory extraction should work regardless of emit_events"
 
         finally:

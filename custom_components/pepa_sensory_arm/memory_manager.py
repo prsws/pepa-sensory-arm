@@ -1005,7 +1005,16 @@ class MemoryManager:
         implementation detail, not contract.
         """
         metadata = dict(memory.get("metadata") or {})
-        for key in ("importance", "expires_at", "is_transient", "last_accessed", "access_count"):
+        for key in (
+            "importance",
+            "expires_at",
+            "is_transient",
+            "last_accessed",
+            "access_count",
+            # Set by search_memories on its results; carried so the search
+            # service can keep reporting it rather than silently dropping it.
+            "relevance_score",
+        ):
             if key in memory:
                 metadata[key] = memory[key]
 

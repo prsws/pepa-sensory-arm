@@ -48,3 +48,35 @@ def mock_chroma_factory():
     factory.get_client = AsyncMock(return_value=client)
 
     return factory
+
+
+def make_record(
+    content,
+    *,
+    memory_id="mem_1",
+    category="fact",
+    source="behavioral",
+    trust=0.5,
+    importance=0.5,
+    **metadata,
+):
+    """Build a MemoryRecord for tests, with the interim backend's extras.
+
+    Consumers now receive MemoryRecords rather than the interim backend's dicts,
+    so tests construct the contract's type. importance stays in metadata, where
+    the contract puts it -- it is salience, not epistemic weight.
+    """
+    from custom_components.pepa_sensory_arm.memory_interface import MemoryRecord
+
+    meta = {"importance": importance}
+    meta.update(metadata)
+    return MemoryRecord(
+        id=memory_id,
+        content=content,
+        category=category,
+        source=source,
+        created_at=1000.0,
+        updated_at=1000.0,
+        trust=trust,
+        metadata=meta,
+    )

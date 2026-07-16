@@ -24,6 +24,8 @@ from custom_components.pepa_sensory_arm.const import (
     DOMAIN,
 )
 
+from .conftest import make_record
+
 
 @pytest.fixture
 def mock_hass():
@@ -98,11 +100,11 @@ def mock_memory_manager():
     manager = MagicMock()
     manager.async_initialize = AsyncMock()
     manager.async_shutdown = AsyncMock()
-    manager.list_all_memories = AsyncMock(return_value=[])
-    manager.delete_memory = AsyncMock(return_value=True)
-    manager.clear_all_memories = AsyncMock(return_value=0)
-    manager.search_memories = AsyncMock(return_value=[])
-    manager.add_memory = AsyncMock(return_value="mem_123")
+    manager.list_all = AsyncMock(return_value=[])
+    manager.delete = AsyncMock(return_value=True)
+    manager.clear_all = AsyncMock(return_value=0)
+    manager.recall = AsyncMock(return_value=[])
+    manager.write = AsyncMock(return_value="mem_123")
     return manager
 
 
@@ -987,20 +989,20 @@ class TestServiceHandlers:
     async def test_handle_list_memories_service(self, mock_hass, mock_memory_manager):
         """Test list_memories service handler."""
         entry_id = "test_entry"
-        mock_memory_manager.list_all_memories = AsyncMock(
+        mock_memory_manager.list_all = AsyncMock(
             return_value=[
-                {
-                    "id": "mem1",
-                    "type": "fact",
-                    "content": "Test memory",
-                    "importance": 0.7,
-                    "extracted_at": "2024-01-01T00:00:00",
-                    "last_accessed": "2024-01-02T00:00:00",
-                    "source_conversation_id": "conv1",
-                }
+                make_record(
+                    "Test memory",
+                    memory_id="mem1",
+                    category="fact",
+                    importance=0.7,
+                    source_conversation_id="conv1",
+                )
             ]
         )
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1020,7 +1022,7 @@ class TestServiceHandlers:
         assert result["total"] == 1
         assert result["memories"][0]["id"] == "mem1"
         assert result["memories"][0]["type"] == "fact"
-        mock_memory_manager.list_all_memories.assert_called_once_with(limit=10, memory_type="fact")
+        mock_memory_manager.list_all.assert_called_once_with(limit=10, category="fact")
 
     async def test_handle_list_memories_no_manager(self, mock_hass):
         """Test list_memories when memory manager not enabled."""
@@ -1046,7 +1048,9 @@ class TestServiceHandlers:
     async def test_handle_delete_memory_service(self, mock_hass, mock_memory_manager):
         """Test delete_memory service handler."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1063,7 +1067,7 @@ class TestServiceHandlers:
 
         await delete_handler(service_call)
 
-        mock_memory_manager.delete_memory.assert_called_once_with("mem_123")
+        mock_memory_manager.delete.assert_called_once_with("mem_123")
 
     async def test_handle_delete_memory_no_manager(self, mock_hass):
         """Test delete_memory when memory manager not enabled."""
@@ -1087,8 +1091,10 @@ class TestServiceHandlers:
     async def test_handle_clear_memories_service(self, mock_hass, mock_memory_manager):
         """Test clear_memories service handler with confirmation."""
         entry_id = "test_entry"
-        mock_memory_manager.clear_all_memories = AsyncMock(return_value=25)
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.clear_all = AsyncMock(return_value=25)
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1106,13 +1112,15 @@ class TestServiceHandlers:
         result = await clear_handler(service_call)
 
         assert result["deleted_count"] == 25
-        mock_memory_manager.clear_all_memories.assert_called_once()
+        mock_memory_manager.clear_all.assert_called_once()
 
     async def test_handle_clear_memories_without_confirmation(self, mock_hass):
         """Test clear_memories without confirmation fails."""
         entry_id = "test_entry"
         mock_memory_manager = MagicMock()
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1133,18 +1141,19 @@ class TestServiceHandlers:
     async def test_handle_search_memories_service(self, mock_hass, mock_memory_manager):
         """Test search_memories service handler."""
         entry_id = "test_entry"
-        mock_memory_manager.search_memories = AsyncMock(
+        mock_memory_manager.recall = AsyncMock(
             return_value=[
-                {
-                    "id": "mem1",
-                    "type": "preference",
-                    "content": "User likes warm temperature",
-                    "importance": 0.8,
-                    "relevance_score": 0.95,
-                }
+                make_record(
+                    "User likes warm temperature",
+                    memory_id="mem1",
+                    category="preference",
+                    relevance_score=0.95,
+                )
             ]
         )
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1167,17 +1176,20 @@ class TestServiceHandlers:
 
         assert result["total"] == 1
         assert result["memories"][0]["relevance_score"] == 0.95
-        mock_memory_manager.search_memories.assert_called_once_with(
+        # min_importance filters salience in the service, not in recall():
+        # the contract has no importance filter and min_trust is not one.
+        mock_memory_manager.recall.assert_called_once_with(
             query="temperature preferences",
             top_k=5,
-            min_importance=0.5,
         )
 
     async def test_handle_search_memories_defaults(self, mock_hass, mock_memory_manager):
         """Test search_memories with default parameters."""
         entry_id = "test_entry"
-        mock_memory_manager.search_memories = AsyncMock(return_value=[])
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.recall = AsyncMock(return_value=[])
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1192,16 +1204,14 @@ class TestServiceHandlers:
 
         await search_handler(service_call)
 
-        mock_memory_manager.search_memories.assert_called_once_with(
-            query="test",
-            top_k=10,  # default
-            min_importance=0.0,  # default
-        )
+        mock_memory_manager.recall.assert_called_once_with(query="test", top_k=10)
 
     async def test_handle_add_memory_service(self, mock_hass, mock_memory_manager):
         """Test add_memory service handler."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1223,20 +1233,24 @@ class TestServiceHandlers:
         result = await add_handler(service_call)
 
         assert result["memory_id"] == "mem_123"
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory_manager.write.assert_called_once()
 
         # Verify the call arguments
-        call_args = mock_memory_manager.add_memory.call_args
+        call_args = mock_memory_manager.write.call_args
         assert call_args[1]["content"] == "User prefers lights at 50%"
-        assert call_args[1]["memory_type"] == "preference"
-        assert call_args[1]["importance"] == 0.7
+        assert call_args[1]["category"] == "preference"
+        # A service-call write is the user stating something.
+        assert call_args[1]["source"] == "explicit_user"
+        assert call_args[1]["metadata"]["importance"] == 0.7
         assert call_args[1]["conversation_id"] is None
         assert call_args[1]["metadata"]["extraction_method"] == "manual_service"
 
     async def test_handle_add_memory_with_defaults(self, mock_hass, mock_memory_manager):
         """Test add_memory with default values."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1254,9 +1268,9 @@ class TestServiceHandlers:
         assert result["memory_id"] == "mem_123"
 
         # Verify defaults were used
-        call_args = mock_memory_manager.add_memory.call_args
-        assert call_args[1]["memory_type"] == "fact"  # default
-        assert call_args[1]["importance"] == 0.5  # default
+        call_args = mock_memory_manager.write.call_args
+        assert call_args[1]["category"] == "fact"  # default
+        assert call_args[1]["metadata"]["importance"] == 0.5  # default
 
 
 class TestAsyncRemoveServices:
@@ -1390,8 +1404,10 @@ class TestServiceErrorHandling:
     async def test_memory_manager_error_propagates(self, mock_hass, mock_memory_manager):
         """Test that memory manager errors are propagated."""
         entry_id = "test_entry"
-        mock_memory_manager.add_memory.side_effect = Exception("Database error")
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.write.side_effect = Exception("Database error")
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 

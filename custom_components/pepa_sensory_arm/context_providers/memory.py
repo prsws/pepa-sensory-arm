@@ -22,7 +22,7 @@ from ..const import (
 from .base import ContextProvider
 
 if TYPE_CHECKING:
-    from ..memory_manager import MemoryManager
+    from ..memory_interface import MemoryInterface, MemoryRecord
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,17 +39,17 @@ class MemoryContextProvider(ContextProvider):
         self,
         hass: HomeAssistant,
         config: dict[str, Any],
-        memory_manager: MemoryManager,
+        memory: MemoryInterface,
     ) -> None:
         """Initialize memory context provider.
 
         Args:
             hass: Home Assistant instance
             config: Configuration dictionary
-            memory_manager: MemoryManager instance for memory operations
+            memory: The memory backend, behind the contract
         """
         super().__init__(hass, config)
-        self.memory_manager = memory_manager
+        self.memory = memory
 
     async def get_context(
         self,
@@ -78,11 +78,23 @@ class MemoryContextProvider(ContextProvider):
                 CONF_MEMORY_MIN_IMPORTANCE, DEFAULT_MEMORY_MIN_IMPORTANCE
             )
 
-            relevant_memories = await self.memory_manager.search_memories(
+            relevant_memories = await self.memory.recall(
                 query=user_input,
                 top_k=top_k,
-                min_importance=min_importance,
             )
+
+            # Importance filtering happens here rather than in recall() because
+            # the contract has no importance filter, and min_trust is NOT its
+            # equivalent: importance is salience, trust is epistemic weight.
+            # Passing min_importance as min_trust would silently start dropping
+            # trustworthy-but-unremarkable memories. Filtering post-recall keeps
+            # P1's composed context byte-identical.
+            if min_importance > 0.0:
+                relevant_memories = [
+                    record
+                    for record in relevant_memories
+                    if record.metadata.get("importance", 0.0) >= min_importance
+                ]
 
             if not relevant_memories:
                 self._logger.debug("No relevant memories found for user input")
@@ -102,11 +114,11 @@ class MemoryContextProvider(ContextProvider):
             self._logger.error("Error retrieving memory context: %s", err)
             return ""
 
-    def _format_memories(self, memories: list[dict[str, Any]]) -> str:
+    def _format_memories(self, memories: list[MemoryRecord]) -> str:
         """Format memories for LLM context injection.
 
         Args:
-            memories: List of memory dictionaries
+            memories: Records to format
 
         Returns:
             Formatted context string
@@ -116,12 +128,12 @@ class MemoryContextProvider(ContextProvider):
 
         context = "## Relevant Information from Past Conversations\n\n"
 
-        for memory in memories:
-            # Format each memory with type indicator
-            memory_type = memory.get("type", "fact").title()
-            content = memory.get("content", "")
-
-            context += f"- [{memory_type}] {content}\n"
+        for record in memories:
+            # Shape is frozen: P1's composed context must not change. Trust and
+            # source are deliberately NOT surfaced here -- this text lands in the
+            # cache-unstable region of every prompt, and widening it is a P1
+            # decision, not a side effect of P2.
+            context += f"- [{record.category.title()}] {record.content}\n"
 
         context += "\n"
         return context

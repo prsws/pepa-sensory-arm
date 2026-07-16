@@ -149,7 +149,35 @@ def test_memory_manager_never_reaches_into_vector_db_manager():
     assert not offenders, "borrowed-object reach reintroduced:\n" + "\n".join(offenders)
 
 
-# AC#6's two source scans (no first-party import of MemoryManager; no read of
-# the legacy "memory_manager" hass.data key) land with commit 5, which is what
-# migrates the consumers. They would be red here, and a red test in a green
-# commit teaches everyone to ignore red tests.
+def test_no_first_party_module_imports_memory_manager():
+    """AC#6a: consumers depend on the contract, not the implementation."""
+    offenders = []
+    pattern = re.compile(r"^\s*from .*memory_manager import|^\s*import .*memory_manager")
+    for path in _first_party_sources():
+        if path.name == "memory_manager.py":
+            continue
+        for i, line in enumerate(path.read_text().splitlines(), 1):
+            if pattern.search(line):
+                offenders.append(f"{path}:{i}: {line.strip()}")
+
+    assert not offenders, "MemoryManager imported outside __init__.py:\n" + "\n".join(offenders)
+
+
+def test_no_first_party_module_reads_the_legacy_hass_data_key():
+    """AC#6b: nobody fetches the manager out of hass.data by the old key.
+
+    This is the check that would have caught agent/core.py, which never imported
+    MemoryManager -- it pulled the object from hass.data as `Any` and handed it
+    to the tools. The object-fetch is the channel, not the import.
+    """
+    offenders = []
+    for path in _first_party_sources():
+        for i, line in enumerate(path.read_text().splitlines(), 1):
+            if '"memory_manager"' in line:
+                offenders.append(f"{path}:{i}: {line.strip()}")
+
+    assert (
+        not offenders
+    ), 'the legacy "memory_manager" hass.data key is read outside __init__.py:\n' + "\n".join(
+        offenders
+    )

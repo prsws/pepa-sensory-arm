@@ -37,6 +37,7 @@ from .const import (
 )
 from .conversation_session import ConversationSessionManager
 from .helpers import check_ollama_health
+from .memory_interface import MemoryInterface
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -222,6 +223,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 config=config,
             )
             await memory_manager.async_initialize()
+
+            # The interface-typed handle. Consumers depend on the contract, not
+            # on which backend happens to be behind it -- that is what makes the
+            # Memory Arm a backend swap rather than a rewrite.
+            memory: MemoryInterface = memory_manager
+            hass.data[DOMAIN][entry.entry_id]["memory"] = memory
+
+            # Deprecated alias, kept for one release. No first-party code may
+            # read it; tests/unit/test_borrowed_client_killed.py enforces that.
             hass.data[DOMAIN][entry.entry_id]["memory_manager"] = memory_manager
             _LOGGER.info("Memory Manager enabled for this entry")
         except Exception as err:
@@ -273,7 +283,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if entry.entry_id in hass.data[DOMAIN]:
         entry_data = hass.data[DOMAIN][entry.entry_id]
 
-        # Shut down memory manager if it exists
+        # Shut down memory manager if it exists. async_shutdown is a backend
+        # lifecycle concern, not part of the contract, so this reaches the
+        # concrete manager deliberately.
         if "memory_manager" in entry_data:
             await entry_data["memory_manager"].async_shutdown()
 
@@ -499,33 +511,37 @@ async def async_setup_services(
 
         # Get memory manager
         entry_data = _get_entry_data(target_entry_id)
-        memory_manager = entry_data.get("memory_manager")
+        memory: MemoryInterface | None = entry_data.get("memory")
 
-        if not memory_manager:
+        if not memory:
             _LOGGER.error("Memory Manager not enabled for this entry")
             return {"error": "Memory Manager not enabled", "memories": [], "total": 0}
 
         try:
-            memories = await memory_manager.list_all_memories(
-                limit=limit,
-                memory_type=memory_type,
+            records = await memory.list_all(
+                limit=limit if limit is not None else 100,
+                category=memory_type,
             )
 
-            # Format for service response
+            # Format for service response. Shape preserved; trust and source are
+            # additions, since a service caller inspecting memory should see what
+            # each belief is worth.
             return {
                 "memories": [
                     {
-                        "id": m["id"],
-                        "type": m["type"],
-                        "content": m["content"],
-                        "importance": m["importance"],
-                        "extracted_at": m["extracted_at"],
-                        "last_accessed": m["last_accessed"],
-                        "source_conversation_id": m.get("source_conversation_id"),
+                        "id": r.id,
+                        "type": r.category,
+                        "content": r.content,
+                        "importance": r.metadata.get("importance", 0.0),
+                        "extracted_at": r.created_at,
+                        "last_accessed": r.metadata.get("last_accessed", r.updated_at),
+                        "source_conversation_id": r.metadata.get("source_conversation_id"),
+                        "trust": r.trust,
+                        "source": r.source,
                     }
-                    for m in memories
+                    for r in records
                 ],
-                "total": len(memories),
+                "total": len(records),
             }
 
         except Exception as err:
@@ -542,14 +558,14 @@ async def async_setup_services(
 
         # Get memory manager
         entry_data = _get_entry_data(target_entry_id)
-        memory_manager = entry_data.get("memory_manager")
+        memory: MemoryInterface | None = entry_data.get("memory")
 
-        if not memory_manager:
+        if not memory:
             _LOGGER.error("Memory Manager not enabled for this entry")
             return
 
         try:
-            success = await memory_manager.delete_memory(memory_id)
+            success = await memory.delete(memory_id)
 
             if success:
                 _LOGGER.info("Deleted memory %s", memory_id)
@@ -574,14 +590,14 @@ async def async_setup_services(
 
         # Get memory manager
         entry_data = _get_entry_data(target_entry_id)
-        memory_manager = entry_data.get("memory_manager")
+        memory: MemoryInterface | None = entry_data.get("memory")
 
-        if not memory_manager:
+        if not memory:
             _LOGGER.error("Memory Manager not enabled for this entry")
             return {"error": "Memory Manager not enabled", "deleted_count": 0}
 
         try:
-            deleted_count = await memory_manager.clear_all_memories()
+            deleted_count = await memory.clear_all()
             _LOGGER.info("Cleared %d memories", deleted_count)
 
             return {
@@ -604,31 +620,38 @@ async def async_setup_services(
 
         # Get memory manager
         entry_data = _get_entry_data(target_entry_id)
-        memory_manager = entry_data.get("memory_manager")
+        memory: MemoryInterface | None = entry_data.get("memory")
 
-        if not memory_manager:
+        if not memory:
             _LOGGER.error("Memory Manager not enabled for this entry")
             return {"error": "Memory Manager not enabled", "memories": [], "total": 0}
 
         try:
-            memories = await memory_manager.search_memories(
-                query=query,
-                top_k=limit,
-                min_importance=min_importance,
-            )
+            records = await memory.recall(query=query, top_k=limit)
+
+            # min_importance filters salience, which the contract does not model
+            # -- and min_trust is not its equivalent. Filtering here keeps this
+            # service's behavior identical rather than quietly redefining what
+            # the parameter means.
+            if min_importance > 0.0:
+                records = [
+                    r for r in records if r.metadata.get("importance", 0.0) >= min_importance
+                ]
 
             return {
                 "memories": [
                     {
-                        "id": m["id"],
-                        "type": m["type"],
-                        "content": m["content"],
-                        "importance": m["importance"],
-                        "relevance_score": m.get("relevance_score", 0.0),
+                        "id": r.id,
+                        "type": r.category,
+                        "content": r.content,
+                        "importance": r.metadata.get("importance", 0.0),
+                        "relevance_score": r.metadata.get("relevance_score", 0.0),
+                        "trust": r.trust,
+                        "source": r.source,
                     }
-                    for m in memories
+                    for r in records
                 ],
-                "total": len(memories),
+                "total": len(records),
             }
 
         except Exception as err:
@@ -647,19 +670,22 @@ async def async_setup_services(
 
         # Get memory manager
         entry_data = _get_entry_data(target_entry_id)
-        memory_manager = entry_data.get("memory_manager")
+        memory: MemoryInterface | None = entry_data.get("memory")
 
-        if not memory_manager:
+        if not memory:
             _LOGGER.error("Memory Manager not enabled for this entry")
             return {"error": "Memory Manager not enabled"}
 
         try:
-            memory_id = await memory_manager.add_memory(
+            # A service-call write is the user stating something, so it is the
+            # explicit_user path -- not an inference the system made.
+            memory_id = await memory.write(
                 content=content,
-                memory_type=memory_type,
+                category=memory_type,
+                source="explicit_user",
                 conversation_id=None,
-                importance=importance,
                 metadata={
+                    "importance": importance,
                     "extraction_method": "manual_service",
                     "topics": [],
                     "entities_involved": [],

@@ -14,7 +14,7 @@ from ..exceptions import ToolExecutionError
 from .registry import BaseTool
 
 if TYPE_CHECKING:
-    from ..memory_manager import MemoryManager
+    from ..memory_interface import MemoryInterface
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,18 +33,18 @@ class StoreMemoryTool(BaseTool):
     def __init__(
         self,
         hass: HomeAssistant,
-        memory_manager: MemoryManager,
+        memory: MemoryInterface,
         conversation_id: str | None = None,
     ) -> None:
         """Initialize the store memory tool.
 
         Args:
             hass: Home Assistant instance
-            memory_manager: MemoryManager instance
+            memory: The memory backend, behind the contract
             conversation_id: Optional conversation ID for context
         """
         super().__init__(hass)
-        self._memory_manager = memory_manager
+        self._memory = memory
         self._conversation_id = conversation_id
 
     @property
@@ -111,13 +111,17 @@ class StoreMemoryTool(BaseTool):
             memory_type = kwargs.get("memory_type", "fact")
             importance = kwargs.get("importance", 0.5)
 
-            # Store the memory
-            memory_id = await self._memory_manager.add_memory(
+            # The "remember this" path: a tool write is the resident asking to
+            # be remembered, so it goes through fast_track -- source is forced to
+            # explicit_user, trust to 1.0, and it is durable before we return.
+            # Trust is deliberately not exposed to the LLM as a parameter: a
+            # model that can set its own credibility has no credibility.
+            memory_id = await self._memory.fast_track(
                 content=content,
-                memory_type=memory_type,
+                category=memory_type,
                 conversation_id=self._conversation_id,
-                importance=importance,
                 metadata={
+                    "importance": importance,
                     "extraction_method": "manual",
                     "tool": TOOL_STORE_MEMORY,
                 },
@@ -150,16 +154,16 @@ class RecallMemoryTool(BaseTool):
     def __init__(
         self,
         hass: HomeAssistant,
-        memory_manager: MemoryManager,
+        memory: MemoryInterface,
     ) -> None:
         """Initialize the recall memory tool.
 
         Args:
             hass: Home Assistant instance
-            memory_manager: MemoryManager instance
+            memory: The memory backend, behind the contract
         """
         super().__init__(hass)
-        self._memory_manager = memory_manager
+        self._memory = memory
 
     @property
     def name(self) -> str:
@@ -214,11 +218,11 @@ class RecallMemoryTool(BaseTool):
 
             limit = kwargs.get("limit", 5)
 
-            # Search for memories
-            memories = await self._memory_manager.search_memories(
+            # Recall, not search: every record arrives carrying its own weight.
+            memories = await self._memory.recall(
                 query=query,
                 top_k=limit,
-                min_importance=0.0,  # Include all memories for explicit recall
+                min_trust=0.0,  # Include all memories for explicit recall
             )
 
             if not memories:
@@ -227,13 +231,16 @@ class RecallMemoryTool(BaseTool):
                     "message": "No relevant memories found.",
                 }
 
-            # Format memories for LLM consumption
+            # Format for LLM consumption, trust and provenance included.
+            # Retrieval is not endorsement -- the model is told how much each
+            # recollection is worth and where it came from, so it can hedge on a
+            # 0.5-trust inference instead of asserting it as fact.
             result = f"Found {len(memories)} relevant memories:\n\n"
-            for i, memory in enumerate(memories, 1):
-                memory_type = memory.get("type", "fact").title()
-                content = memory.get("content", "")
-                importance = memory.get("importance", 0.0)
-                result += f"{i}. [{memory_type}] {content} (importance: {importance:.2f})\n"
+            for i, record in enumerate(memories, 1):
+                result += (
+                    f"{i}. [{record.category.title()}] {record.content} "
+                    f"(trust: {record.trust:.2f}, source: {record.source})\n"
+                )
 
             _LOGGER.info(
                 "Recalled %d memories via tool for query: %s",

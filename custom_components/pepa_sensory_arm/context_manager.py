@@ -35,6 +35,7 @@ from .const import (
 )
 from .context_providers import ContextProvider, DirectContextProvider
 from .exceptions import ContextInjectionError, TokenLimitExceeded
+from .memory_interface import MemoryInterface
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,14 +226,14 @@ class ContextManager:
 
     def set_memory_provider(
         self,
-        memory_manager: Any,
+        memory: MemoryInterface,
     ) -> None:
         """Set the memory context provider.
 
-        Initializes a MemoryContextProvider with the given memory manager.
+        Initializes a MemoryContextProvider with the given memory backend.
 
         Args:
-            memory_manager: MemoryManager instance
+            memory: The memory backend, behind the contract
         """
         try:
             from .context_providers.memory import MemoryContextProvider
@@ -240,7 +241,7 @@ class ContextManager:
             self._memory_provider = MemoryContextProvider(
                 hass=self.hass,
                 config=self.config,
-                memory_manager=memory_manager,
+                memory=memory,
             )
             _LOGGER.info("Memory context provider initialized")
         except Exception as err:
