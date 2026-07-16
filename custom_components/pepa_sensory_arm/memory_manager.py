@@ -16,7 +16,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
-    CONF_CONTEXT_MODE,
     CONF_MEMORY_CLEANUP_INTERVAL,
     CONF_MEMORY_COLLECTION_NAME,
     CONF_MEMORY_DEDUP_THRESHOLD,
@@ -28,8 +27,6 @@ from .const import (
     CONF_MEMORY_PREFERENCE_TTL,
     CONF_MEMORY_QUALITY_VALIDATION_ENABLED,
     CONF_MEMORY_QUALITY_VALIDATION_INTERVAL,
-    CONTEXT_MODE_VECTOR_DB,
-    DEFAULT_CONTEXT_MODE,
     DEFAULT_MEMORY_CLEANUP_INTERVAL,
     DEFAULT_MEMORY_COLLECTION_NAME,
     DEFAULT_MEMORY_DEDUP_THRESHOLD,
@@ -391,15 +388,13 @@ class MemoryManager:
         Returns:
             List of memories sorted by relevance
         """
-        # Check context mode to determine search strategy
-        context_mode = self.config.get(CONF_CONTEXT_MODE, DEFAULT_CONTEXT_MODE)
-
-        if context_mode == CONTEXT_MODE_VECTOR_DB:
-            # Vector DB mode: Query ChromaDB directly
+        # Availability-driven routing: use ChromaDB when reachable, otherwise
+        # degrade to the local path (which falls back to keyword search).
+        if self._chromadb_available:
             return await self._search_memories_chromadb(query, top_k, min_importance, memory_types)
-        else:
-            # Direct mode: Use local memory storage
-            return await self._search_memories_local(query, top_k, min_importance, memory_types)
+
+        _LOGGER.warning("ChromaDB unavailable for memory search; using local keyword search")
+        return await self._search_memories_local(query, top_k, min_importance, memory_types)
 
     async def _search_memories_chromadb(
         self,
@@ -410,7 +405,7 @@ class MemoryManager:
     ) -> list[dict]:
         """Search memories directly from ChromaDB.
 
-        Used when context mode is set to vector_db.
+        Used when ChromaDB is available.
 
         Args:
             query: Search query text
@@ -509,7 +504,7 @@ class MemoryManager:
     ) -> list[dict]:
         """Search memories from local storage.
 
-        Used when context mode is set to direct.
+        Used when ChromaDB is unavailable; degrades to keyword search.
 
         Args:
             query: Search query text

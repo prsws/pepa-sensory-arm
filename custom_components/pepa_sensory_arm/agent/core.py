@@ -644,7 +644,7 @@ class PepaSensoryArm(
 
     def _build_system_prompt(
         self,
-        entity_context: str = "",
+        conversation_context: str = "",
         conversation_id: str | None = None,
         device_id: str | None = None,
         user_message: str | None = None,
@@ -652,7 +652,9 @@ class PepaSensoryArm(
         """Build the system prompt for the LLM.
 
         Args:
-            entity_context: Formatted entity context to inject into template
+            conversation_context: Composed retrieved context (memories and
+                additional-collection results; in replacement prompt mode also
+                the entity context) to inject into the template
             conversation_id: Current conversation ID
             device_id: Device that triggered the conversation
             user_message: User's current message
@@ -660,10 +662,12 @@ class PepaSensoryArm(
         Returns:
             Complete system prompt string
         """
-        # Template variables available to custom prompts
+        # Template variables available to custom prompts.
+        # entity_context is a deprecated alias of conversation_context, kept
+        # for existing custom prompts.
         template_vars = {
-            "entity_context": entity_context,
-            "exposed_entities": self.get_exposed_entities(),
+            "conversation_context": conversation_context,
+            "entity_context": conversation_context,
             "ha_name": self.hass.config.location_name,
             "current_device_id": device_id,
             "conversation_id": conversation_id,
@@ -681,24 +685,28 @@ class PepaSensoryArm(
         if use_custom and not additions.strip():
             use_custom = False
 
-        if not use_default:
-            if not full_prompt.strip():
-                _LOGGER.error(
-                    "prompt_use_default is False but prompt_custom is empty; "
-                    "falling back to the default system prompt so a request is "
-                    "never sent without a system prompt."
-                )
-                use_default = True
-                use_custom = False
-            else:
-                return self._render_template(full_prompt, template_vars)
+        if not use_default and not full_prompt.strip():
+            _LOGGER.error(
+                "prompt_use_default is False but prompt_custom is empty; "
+                "falling back to the default system prompt so a request is "
+                "never sent without a system prompt."
+            )
+            use_default = True
+            use_custom = False
 
-        if use_custom:
+        if not use_default:
+            assembled = full_prompt
+        elif use_custom:
             assembled = (
                 f"{DEFAULT_PROMPT_HEAD}\n\n{additions}\n{DEFAULT_PROMPT_TAIL}\n\n{PROMPT_TRAILER}"
             )
         else:
             assembled = f"{DEFAULT_PROMPT_HEAD}\n{DEFAULT_PROMPT_TAIL}\n\n{PROMPT_TRAILER}"
+
+        # The exposed-entities registry walk is expensive; only compute it
+        # when the assembled prompt actually references the variable.
+        if "exposed_entities" in assembled:
+            template_vars["exposed_entities"] = self.get_exposed_entities()
 
         return self._render_template(assembled, template_vars)
 
@@ -1038,7 +1046,7 @@ class PepaSensoryArm(
 
         # Build system prompt with full context
         system_prompt = self._build_system_prompt(
-            entity_context=context,
+            conversation_context=context,
             conversation_id=conversation_id,
             device_id=device_id,
             user_message=user_message,
@@ -1417,7 +1425,7 @@ class PepaSensoryArm(
 
         # Build system prompt with full context including device_id
         system_prompt = self._build_system_prompt(
-            entity_context=context,
+            conversation_context=context,
             conversation_id=conversation_id,
             device_id=device_id,
             user_message=user_message,

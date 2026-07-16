@@ -11,20 +11,23 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 
 from .const import (
+    CONF_ADDITIONAL_COLLECTIONS,
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
     CONF_DIRECT_ENTITIES,
     CONF_PROMPT_INCLUDE_LABELS,
+    CONF_PROMPT_USE_DEFAULT,
     CONTEXT_MODE_DIRECT,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_CONTEXT_FORMAT,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_PROMPT_INCLUDE_LABELS,
+    DEFAULT_PROMPT_USE_DEFAULT,
     EVENT_CONTEXT_INJECTED,
     EVENT_CONTEXT_OPTIMIZED,
     MAX_CONTEXT_TOKENS,
@@ -76,6 +79,7 @@ class ContextManager:
         self.config = config
         self._provider: ContextProvider | None = None
         self._memory_provider: ContextProvider | None = None
+        self._retrieval_provider: ContextProvider | None = None
         self._cache: dict[str, Any] = {}
         self._cache_timestamps: dict[str, float] = {}
         self._cache_enabled = config.get("cache_enabled", False)
@@ -106,12 +110,42 @@ class ContextManager:
         else:
             return DEFAULT_CONTEXT_MODE
 
+    def _use_default_prompt(self) -> bool:
+        """Whether the built-in default prompt (HEAD/TAIL) is in use.
+
+        Drives context composition: in default prompt mode the device picture
+        comes from the prompt TAIL's CSV tables, so no entity provider is
+        created and context is composed from memory + retrieval only.
+        """
+        return bool(self.config.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT))
+
     def _initialize_provider(self) -> None:
-        """Initialize the context provider based on configuration.
+        """Initialize the context providers based on configuration.
 
         Raises:
             ContextInjectionError: If provider initialization fails
         """
+        # The retrieval provider (additional collections) serves both prompt
+        # modes; a failure to create it degrades to an empty retrieval leg.
+        # With no additional collections configured there is nothing to
+        # retrieve, so no provider is created at all.
+        self._retrieval_provider = None
+        if self.config.get(CONF_ADDITIONAL_COLLECTIONS):
+            try:
+                from .context_providers.retrieval import RetrievalContextProvider
+
+                self._retrieval_provider = RetrievalContextProvider(self.hass, self.config)
+            except Exception as error:
+                _LOGGER.warning("Failed to initialize retrieval context provider: %s", error)
+                self._retrieval_provider = None
+
+        if self._use_default_prompt():
+            # Default prompt mode: the entity picture lives in the prompt
+            # TAIL's device tables — no entity provider is instantiated.
+            self._provider = None
+            _LOGGER.info("Default prompt mode: composing context from memory + retrieval providers")
+            return
+
         # During initialization, use standard config key (CONF_CONTEXT_MODE)
         # The "mode" fallback is only for runtime config access
         mode = self.config.get(CONF_CONTEXT_MODE, DEFAULT_CONTEXT_MODE)
@@ -233,7 +267,9 @@ class ContextManager:
         Raises:
             ContextInjectionError: If context retrieval fails
         """
-        if self._provider is None:
+        use_default = self._use_default_prompt()
+
+        if not use_default and self._provider is None:
             raise ContextInjectionError("No context provider configured")
 
         # Check cache first
@@ -244,46 +280,10 @@ class ContextManager:
                 return cached_context
 
         try:
-            # Run entity and memory context retrieval in parallel if memory provider available
-            if self._memory_provider is not None:
-                # Parallel execution using asyncio.gather
-                results = await asyncio.gather(
-                    self._provider.get_context(user_input),
-                    self._memory_provider.get_context(user_input),
-                    return_exceptions=True,
-                )
-
-                # Handle entity context result
-                if isinstance(results[0], Exception):
-                    _LOGGER.error("Failed to get entity context: %s", results[0])
-                    raise ContextInjectionError(
-                        f"Failed to retrieve entity context: {results[0]}"
-                    ) from results[0]
-                context = cast(str, results[0])
-
-                # Handle memory context result
-                if isinstance(results[1], Exception):
-                    _LOGGER.warning("Failed to get memory context: %s", results[1])
-                    # Continue without memory context
-                elif results[1]:
-                    # Check if entity context is a "no context" message
-                    # If so, replace it entirely with memory context
-                    no_context_messages = [
-                        "No relevant context found.",
-                        "No relevant context found",
-                        "[Fallback mode - Vector DB unavailable]",
-                    ]
-                    if any(msg in context for msg in no_context_messages):
-                        # Replace unhelpful entity context with memory context
-                        context = cast(str, results[1])
-                        _LOGGER.debug("Replaced empty entity context with memory context")
-                    else:
-                        # Combine entity and memory context
-                        context = f"{context}\n{cast(str, results[1])}"
-                        _LOGGER.debug("Added memory context to entity context")
+            if use_default:
+                context = await self._get_context_default(user_input)
             else:
-                # No memory provider, just get entity context
-                context = await self._provider.get_context(user_input)
+                context = await self._get_context_replacement(user_input)
 
             # Cache the result
             if self._cache_enabled:
@@ -298,6 +298,103 @@ class ContextManager:
         except Exception as error:
             _LOGGER.error("Failed to get context: %s", error, exc_info=True)
             raise ContextInjectionError(f"Failed to retrieve context: {error}") from error
+
+    async def _get_context_default(self, user_input: str) -> str:
+        """Compose context in default prompt mode: memory + retrieval only.
+
+        Each leg degrades to an empty string on failure — never raises and
+        never emits the entity-provider sentinel strings.
+        """
+        legs: list[tuple[str, ContextProvider]] = []
+        if self._memory_provider is not None:
+            legs.append(("memory", self._memory_provider))
+        if self._retrieval_provider is not None:
+            legs.append(("retrieval", self._retrieval_provider))
+
+        if not legs:
+            return ""
+
+        results = await asyncio.gather(
+            *(provider.get_context(user_input) for _, provider in legs),
+            return_exceptions=True,
+        )
+
+        pieces: list[str] = []
+        for (name, _), result in zip(legs, results):
+            if isinstance(result, BaseException):
+                _LOGGER.warning("Failed to get %s context: %s", name, result)
+            elif result:
+                pieces.append(result)
+
+        return "\n".join(pieces)
+
+    async def _get_context_replacement(self, user_input: str) -> str:
+        """Compose context in replacement prompt mode.
+
+        Preserves the legacy entity + memory merge (including the sentinel
+        replacement logic), with the retrieval leg appended when non-empty.
+        """
+        assert self._provider is not None  # Guarded by get_context
+
+        if self._memory_provider is None and self._retrieval_provider is None:
+            # No auxiliary providers, just get entity context
+            return await self._provider.get_context(user_input)
+
+        # Parallel execution using asyncio.gather
+        tasks = [self._provider.get_context(user_input)]
+        memory_index = None
+        retrieval_index = None
+        if self._memory_provider is not None:
+            memory_index = len(tasks)
+            tasks.append(self._memory_provider.get_context(user_input))
+        if self._retrieval_provider is not None:
+            retrieval_index = len(tasks)
+            tasks.append(self._retrieval_provider.get_context(user_input))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Handle entity context result
+        if isinstance(results[0], BaseException):
+            _LOGGER.error("Failed to get entity context: %s", results[0])
+            raise ContextInjectionError(
+                f"Failed to retrieve entity context: {results[0]}"
+            ) from results[0]
+        context = results[0]
+
+        # Handle memory context result
+        if memory_index is not None:
+            memory_result = results[memory_index]
+            if isinstance(memory_result, BaseException):
+                _LOGGER.warning("Failed to get memory context: %s", memory_result)
+                # Continue without memory context
+            elif memory_result:
+                # Check if entity context is a "no context" message
+                # If so, replace it entirely with memory context
+                no_context_messages = [
+                    "No relevant context found.",
+                    "No relevant context found",
+                    "[Fallback mode - Vector DB unavailable]",
+                ]
+                if any(msg in context for msg in no_context_messages):
+                    # Replace unhelpful entity context with memory context
+                    context = memory_result
+                    _LOGGER.debug("Replaced empty entity context with memory context")
+                else:
+                    # Combine entity and memory context
+                    context = f"{context}\n{memory_result}"
+                    _LOGGER.debug("Added memory context to entity context")
+
+        # Handle retrieval (additional collections) context result
+        if retrieval_index is not None:
+            retrieval_result = results[retrieval_index]
+            if isinstance(retrieval_result, BaseException):
+                _LOGGER.warning("Failed to get retrieval context: %s", retrieval_result)
+            elif retrieval_result:
+                retrieval_context = retrieval_result
+                context = f"{context}\n{retrieval_context}" if context else retrieval_context
+                _LOGGER.debug("Added retrieval context")
+
+        return context
 
     async def get_formatted_context(
         self,
@@ -337,7 +434,7 @@ class ContextManager:
         # Populate metrics if provided
         if metrics is not None and "context" not in metrics:
             metrics["context"] = {
-                "mode": self._get_mode_from_config(),
+                "mode": self._get_composition_mode(),
                 "original_tokens": original_tokens,
                 "optimized_tokens": estimated_tokens,
                 "compression_ratio": round(
@@ -529,11 +626,11 @@ class ContextManager:
         """
         mode = self._get_mode_from_config()
 
-        if mode == CONTEXT_MODE_DIRECT:
+        if not self._use_default_prompt() and mode == CONTEXT_MODE_DIRECT:
             # Direct mode always returns same entities
             return "direct_context"
         else:
-            # Vector DB mode is input-specific
+            # Default mode (memory + retrieval) and vector DB mode are input-specific
             import hashlib
 
             return hashlib.md5(user_input.encode()).hexdigest()
@@ -557,7 +654,7 @@ class ContextManager:
             token_count: Estimated token count
             user_input: The user's input (for vector DB query tracking)
         """
-        mode = self._get_mode_from_config()
+        mode = self._get_composition_mode()
 
         # Extract entity IDs from provider if possible
         entities_included = []
@@ -619,12 +716,14 @@ class ContextManager:
             >>> await context_manager.update_config(new_config)
         """
         old_mode = self._get_mode_from_config()
+        old_use_default = self._use_default_prompt()
 
         # Update configuration
         self.config.update(config)
 
         # Get new mode after update
         new_mode = self._get_mode_from_config()
+        new_use_default = self._use_default_prompt()
 
         # Update cache settings
         self._cache_enabled = config.get("cache_enabled", self._cache_enabled)
@@ -632,12 +731,15 @@ class ContextManager:
         self._emit_events = config.get("emit_events", self._emit_events)
         self._max_context_tokens = config.get("max_context_tokens", self._max_context_tokens)
 
-        # Reinitialize provider if mode changed
-        if old_mode != new_mode:
+        # Reinitialize providers if the composition changed
+        if old_mode != new_mode or old_use_default != new_use_default:
             _LOGGER.info(
-                "Context mode changed from %s to %s, reinitializing provider",
+                "Context composition changed (mode %s -> %s, default prompt %s -> %s), "
+                "reinitializing providers",
                 old_mode,
                 new_mode,
+                old_use_default,
+                new_use_default,
             )
             self._initialize_provider()
 
@@ -646,13 +748,26 @@ class ContextManager:
 
         _LOGGER.info("Context manager configuration updated")
 
-    def get_current_mode(self) -> str:
-        """Get the current context mode.
+    def _get_composition_mode(self) -> str:
+        """Get the effective context composition mode.
 
         Returns:
-            Current context mode ("direct" or "vector_db")
+            "default" when the built-in default prompt drives composition
+            (memory + retrieval only), otherwise the configured entity
+            context mode ("direct" or "vector_db").
         """
+        if self._use_default_prompt():
+            return "default"
         return self._get_mode_from_config()
+
+    def get_current_mode(self) -> str:
+        """Get the current context composition mode.
+
+        Returns:
+            "default" in default prompt mode, otherwise the entity context
+            mode ("direct" or "vector_db")
+        """
+        return self._get_composition_mode()
 
     def get_provider_info(self) -> dict[str, Any]:
         """Get information about the current provider.
@@ -671,6 +786,10 @@ class ContextManager:
         info = {
             "provider_class": (self._provider.__class__.__name__ if self._provider else None),
             "mode": self.get_current_mode(),
+            "entity_context_mode": self._get_mode_from_config(),
+            "retrieval_provider_class": (
+                self._retrieval_provider.__class__.__name__ if self._retrieval_provider else None
+            ),
             "cache_enabled": self._cache_enabled,
             "cache_ttl": self._cache_ttl,
             "max_context_tokens": self._max_context_tokens,
@@ -693,4 +812,8 @@ class ContextManager:
             await self._provider.async_shutdown()
         if self._memory_provider is not None and hasattr(self._memory_provider, "async_shutdown"):
             await self._memory_provider.async_shutdown()
+        if self._retrieval_provider is not None and hasattr(
+            self._retrieval_provider, "async_shutdown"
+        ):
+            await self._retrieval_provider.async_shutdown()
         self._clear_cache()

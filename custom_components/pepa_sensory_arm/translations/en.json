@@ -34,7 +34,7 @@
           "context_entities": "Entities to Include"
         },
         "data_description": {
-          "context_mode": "Choose how to inject entity context: Direct (always include specified entities) or Vector DB (dynamically retrieve relevant entities)",
+          "context_mode": "Choose how to inject entity context: Direct (always include specified entities) or Vector DB (dynamically retrieve relevant entities). Applies only when using a full replacement prompt: the built-in default prompt sources device context from the entity-context sensor, and this setting has no effect on it.",
           "context_format": "Format for entity data: JSON (structured) or Natural Language (human-readable)",
           "context_entities": "Comma-separated list of entity IDs or patterns (e.g., sensor.temperature, light.*, climate.thermostat)"
         }
@@ -220,7 +220,7 @@
           "max_context_tokens": "Max Context Tokens"
         },
         "data_description": {
-          "context_mode": "Choose how to inject entity context",
+          "context_mode": "Choose how to inject entity context. Applies only when using a full replacement prompt: the built-in default prompt sources device context from the entity-context sensor, and this setting has no effect on it.",
           "context_format": "Format for entity data (JSON, Natural Language, or Hybrid)",
           "direct_entities": "Comma-separated list of entity IDs (e.g., sensor.temperature,light.*)",
           "max_context_tokens": "Maximum total tokens for context (entities + history + prompt). Increase if you have a model with large context window. Default: 8000."

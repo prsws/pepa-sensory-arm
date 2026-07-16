@@ -27,6 +27,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_LLM_BASE_URL,
     CONF_LLM_MODEL,
     CONF_MEMORY_ENABLED,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_STREAMING_ENABLED,
     CONF_TOOLS_CUSTOM,
     CONTEXT_MODE_VECTOR_DB,
@@ -48,6 +49,7 @@ class TestGracefulDegradation:
             CONF_LLM_BASE_URL: "http://localhost:11434/v1",
             CONF_LLM_API_KEY: "test-key",
             CONF_LLM_MODEL: "qwen2.5:3b",
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_HISTORY_ENABLED: True,
             CONF_HISTORY_MAX_MESSAGES: DEFAULT_HISTORY_MAX_MESSAGES,
             CONF_HISTORY_MAX_TOKENS: DEFAULT_HISTORY_MAX_TOKENS,
@@ -98,6 +100,7 @@ class TestGracefulDegradation:
         config = {
             **base_config,
             CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB,
+            CONF_PROMPT_USE_DEFAULT: False,
         }
 
         # Mock VectorDBContextProvider to raise an error during initialization
@@ -431,6 +434,7 @@ class TestGracefulDegradation:
             CONF_MEMORY_ENABLED: True,
             CONF_EXTERNAL_LLM_ENABLED: True,
             CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB,
+            CONF_PROMPT_USE_DEFAULT: False,
         }
 
         # Mock multiple component failures

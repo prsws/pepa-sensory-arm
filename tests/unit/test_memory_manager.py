@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.pepa_sensory_arm.const import (
+    CONF_CONTEXT_MODE,
     CONF_MEMORY_COLLECTION_NAME,
     CONF_MEMORY_DEDUP_THRESHOLD,
     CONF_MEMORY_IMPORTANCE_DECAY,
@@ -18,6 +19,8 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_MEMORY_MIN_IMPORTANCE,
     CONF_MEMORY_QUALITY_VALIDATION_ENABLED,
     CONF_MEMORY_QUALITY_VALIDATION_INTERVAL,
+    CONTEXT_MODE_DIRECT,
+    CONTEXT_MODE_VECTOR_DB,
     DEFAULT_MEMORY_COLLECTION_NAME,
 )
 from custom_components.pepa_sensory_arm.memory_manager import (
@@ -423,6 +426,8 @@ class TestSearchMemories:
             return_value={
                 "ids": [[high_id]],
                 "distances": [[0.1]],
+                "documents": [["High importance"]],
+                "metadatas": [[{"memory_id": high_id, "importance": 0.9}]],
             }
         )
 
@@ -456,6 +461,13 @@ class TestSearchMemories:
             return_value={
                 "ids": [[fact_id, pref_id]],
                 "distances": [[0.1, 0.2]],
+                "documents": [["This is a fact", "This is a preference"]],
+                "metadatas": [
+                    [
+                        {"memory_id": fact_id, "type": MEMORY_TYPE_FACT},
+                        {"memory_id": pref_id, "type": MEMORY_TYPE_PREFERENCE},
+                    ]
+                ],
             }
         )
 
@@ -508,6 +520,54 @@ class TestSearchMemories:
         )
 
         assert len(results) == 0
+
+
+class TestSearchMemoriesRouting:
+    """Test that search routing is availability-driven, decoupled from CONF_CONTEXT_MODE."""
+
+    @pytest.mark.parametrize("context_mode", [CONTEXT_MODE_DIRECT, CONTEXT_MODE_VECTOR_DB, None])
+    async def test_chromadb_available_routes_to_chromadb(self, memory_manager, context_mode):
+        """ChromaDB available: chroma path used regardless of context mode."""
+        if context_mode is not None:
+            memory_manager.config[CONF_CONTEXT_MODE] = context_mode
+        memory_manager._chromadb_available = True
+
+        with (
+            patch.object(
+                memory_manager, "_search_memories_chromadb", new=AsyncMock(return_value=[])
+            ) as mock_chroma,
+            patch.object(
+                memory_manager, "_search_memories_local", new=AsyncMock(return_value=[])
+            ) as mock_local,
+        ):
+            await memory_manager.search_memories(query="test")
+
+        mock_chroma.assert_awaited_once()
+        mock_local.assert_not_awaited()
+
+    @pytest.mark.parametrize("context_mode", [CONTEXT_MODE_DIRECT, CONTEXT_MODE_VECTOR_DB, None])
+    async def test_chromadb_unavailable_routes_to_local_with_warning(
+        self, memory_manager, context_mode, caplog
+    ):
+        """ChromaDB unavailable: local path used + warning, regardless of context mode."""
+        if context_mode is not None:
+            memory_manager.config[CONF_CONTEXT_MODE] = context_mode
+        memory_manager._chromadb_available = False
+
+        with (
+            patch.object(
+                memory_manager, "_search_memories_chromadb", new=AsyncMock(return_value=[])
+            ) as mock_chroma,
+            patch.object(
+                memory_manager, "_search_memories_local", new=AsyncMock(return_value=[])
+            ) as mock_local,
+        ):
+            results = await memory_manager.search_memories(query="test")
+
+        mock_local.assert_awaited_once()
+        mock_chroma.assert_not_awaited()
+        assert results == []
+        assert "ChromaDB unavailable for memory search" in caplog.text
 
 
 class TestDeleteMemory:

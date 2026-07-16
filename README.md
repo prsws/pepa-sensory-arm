@@ -274,6 +274,28 @@ The system prompt is configured via **System Prompt** in the integration's optio
 - **Additions** (when enabled) are inserted verbatim, with no automatic heading, immediately before the device tables — still inside the cached prefix. Supply your own heading if you want one.
 - **Full replacement** disables the default prompt entirely. You own the entire prompt text, including any device context and trailer — nothing is prepended or appended. If left empty, the integration logs an error and falls back to the default prompt rather than sending an empty system prompt.
 
+### Context composition
+
+Context composition follows the prompt mode:
+
+- **Default prompt mode**: device context comes **exclusively** from the pyscript CSV tables (`sensor.pepa_entity_context`) baked into the prompt. The prompt's **Retrieved Context** section carries only memories and additional-collection results — no entity retrieval runs per turn. If a retrieval leg fails, it contributes nothing (the section may be empty); it never injects fallback banners or "no context" placeholders.
+- **Full replacement mode**: the legacy behavior is preserved — entity context is gathered per the **Context Mode** setting (Direct or Vector DB), merged with memories, and additional-collection results are appended when configured.
+
+The **Context Mode** setting (Direct vs. Vector DB) therefore applies **only** to full-replacement prompts; it has no effect in default prompt mode.
+
+### Template variables
+
+Custom prompts (additions and full replacements) are Jinja-rendered with these variables:
+
+- `conversation_context` — the composed retrieved context (memories, additional-collection results, and — in replacement mode — entity context).
+- `entity_context` — **deprecated** alias of `conversation_context`, retained so existing custom prompts keep working. Prefer `conversation_context` in new prompts.
+- `exposed_entities` — structured list of entities exposed to Assist. Only computed when the assembled prompt actually references it, so default-mode turns skip the registry walk.
+- `ha_name`, `current_device_id`, `conversation_id`, `user_message`, `external_llm_enabled` — as before.
+
+### Memory search degradation
+
+Memory search uses ChromaDB semantic search whenever ChromaDB is available, regardless of the Context Mode setting. If ChromaDB is unreachable, memory search degrades to a local keyword search and a warning is logged for each degraded search — results may be less relevant, but memory recall never silently disappears.
+
 ### Cache discipline warning
 
 Both the additions and full-replacement fields are Jinja-rendered, exactly like the default prompt. Any volatile template call — `now()`, `states()`, `state_attr()`, etc. — placed in the **additions** field runs on every turn and breaks the prefix cache for the entire prompt, measurably slowing every response. Whatever you put in either field is your responsibility; there is no sanitization or guardrail against this.
