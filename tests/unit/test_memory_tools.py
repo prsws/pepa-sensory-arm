@@ -12,6 +12,8 @@ from custom_components.pepa_sensory_arm.tools.memory_tools import (
     StoreMemoryTool,
 )
 
+from .conftest import make_record
+
 
 @pytest.fixture
 def mock_hass():
@@ -20,24 +22,24 @@ def mock_hass():
 
 
 @pytest.fixture
-def mock_memory_manager():
+def mock_memory():
     """Create a mock MemoryManager instance."""
     mock_manager = MagicMock()
-    mock_manager.add_memory = AsyncMock()
-    mock_manager.search_memories = AsyncMock()
+    mock_manager.fast_track = AsyncMock()
+    mock_manager.recall = AsyncMock()
     return mock_manager
 
 
 @pytest.fixture
-def store_memory_tool(mock_hass, mock_memory_manager):
+def store_memory_tool(mock_hass, mock_memory):
     """Create a StoreMemoryTool instance."""
-    return StoreMemoryTool(mock_hass, mock_memory_manager, conversation_id="test_conv")
+    return StoreMemoryTool(mock_hass, mock_memory, conversation_id="test_conv")
 
 
 @pytest.fixture
-def recall_memory_tool(mock_hass, mock_memory_manager):
+def recall_memory_tool(mock_hass, mock_memory):
     """Create a RecallMemoryTool instance."""
-    return RecallMemoryTool(mock_hass, mock_memory_manager)
+    return RecallMemoryTool(mock_hass, mock_memory)
 
 
 class TestStoreMemoryTool:
@@ -74,9 +76,9 @@ class TestStoreMemoryTool:
         assert "parameters" in definition["function"]
 
     @pytest.mark.asyncio
-    async def test_execute_success(self, store_memory_tool, mock_memory_manager):
+    async def test_execute_success(self, store_memory_tool, mock_memory):
         """Test successful memory storage."""
-        mock_memory_manager.add_memory.return_value = "mem_123"
+        mock_memory.fast_track.return_value = "mem_123"
 
         result = await store_memory_tool.execute(
             content="User prefers lights at 50% brightness",
@@ -88,21 +90,24 @@ class TestStoreMemoryTool:
         assert "mem_123" in result["message"]
 
         # Verify memory was stored correctly
-        mock_memory_manager.add_memory.assert_called_once_with(
+        # A tool write is the resident asking to be remembered: fast_track
+        # forces source=explicit_user and trust=1.0, and importance -- which is
+        # salience, not credibility -- rides in metadata.
+        mock_memory.fast_track.assert_called_once_with(
             content="User prefers lights at 50% brightness",
-            memory_type="preference",
+            category="preference",
             conversation_id="test_conv",
-            importance=0.8,
             metadata={
+                "importance": 0.8,
                 "extraction_method": "manual",
                 "tool": TOOL_STORE_MEMORY,
             },
         )
 
     @pytest.mark.asyncio
-    async def test_execute_with_defaults(self, store_memory_tool, mock_memory_manager):
+    async def test_execute_with_defaults(self, store_memory_tool, mock_memory):
         """Test execute with default parameters."""
-        mock_memory_manager.add_memory.return_value = "mem_456"
+        mock_memory.fast_track.return_value = "mem_456"
 
         result = await store_memory_tool.execute(
             content="Test fact",
@@ -111,27 +116,27 @@ class TestStoreMemoryTool:
         assert result["success"] is True
 
         # Verify defaults were used
-        mock_memory_manager.add_memory.assert_called_once()
-        call_kwargs = mock_memory_manager.add_memory.call_args[1]
-        assert call_kwargs["memory_type"] == "fact"
-        assert call_kwargs["importance"] == 0.5
+        mock_memory.fast_track.assert_called_once()
+        call_kwargs = mock_memory.fast_track.call_args[1]
+        assert call_kwargs["category"] == "fact"
+        assert call_kwargs["metadata"]["importance"] == 0.5
 
     @pytest.mark.asyncio
-    async def test_execute_missing_content(self, store_memory_tool, mock_memory_manager):
+    async def test_execute_missing_content(self, store_memory_tool, mock_memory):
         """Test execute fails when content is missing."""
         with pytest.raises(ToolExecutionError, match="Missing required parameter: content"):
             await store_memory_tool.execute()
 
     @pytest.mark.asyncio
-    async def test_execute_empty_content(self, store_memory_tool, mock_memory_manager):
+    async def test_execute_empty_content(self, store_memory_tool, mock_memory):
         """Test execute fails when content is empty."""
         with pytest.raises(ToolExecutionError, match="Missing required parameter: content"):
             await store_memory_tool.execute(content="")
 
     @pytest.mark.asyncio
-    async def test_execute_memory_manager_error(self, store_memory_tool, mock_memory_manager):
+    async def test_execute_memory_manager_error(self, store_memory_tool, mock_memory):
         """Test execute handles memory manager errors."""
-        mock_memory_manager.add_memory.side_effect = Exception("Database error")
+        mock_memory.fast_track.side_effect = Exception("Database error")
 
         with pytest.raises(ToolExecutionError, match="Failed to store memory"):
             await store_memory_tool.execute(content="Test")
@@ -170,21 +175,13 @@ class TestRecallMemoryTool:
         assert "parameters" in definition["function"]
 
     @pytest.mark.asyncio
-    async def test_execute_success(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_success(self, recall_memory_tool, mock_memory):
         """Test successful memory recall."""
         mock_memories = [
-            {
-                "type": "preference",
-                "content": "Prefers bedroom at 68°F",
-                "importance": 0.8,
-            },
-            {
-                "type": "fact",
-                "content": "Has 3 bedrooms",
-                "importance": 0.6,
-            },
+            make_record("Prefers bedroom at 68°F", category="preference", importance=0.8),
+            make_record("Has 3 bedrooms", category="fact", importance=0.6),
         ]
-        mock_memory_manager.search_memories.return_value = mock_memories
+        mock_memory.recall.return_value = mock_memories
 
         result = await recall_memory_tool.execute(
             query="bedroom temperature",
@@ -197,30 +194,30 @@ class TestRecallMemoryTool:
         assert "[Fact] Has 3 bedrooms" in result["message"]
 
         # Verify search parameters
-        mock_memory_manager.search_memories.assert_called_once_with(
+        mock_memory.recall.assert_called_once_with(
             query="bedroom temperature",
             top_k=5,
-            min_importance=0.0,
+            min_trust=0.0,
         )
 
     @pytest.mark.asyncio
-    async def test_execute_with_defaults(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_with_defaults(self, recall_memory_tool, mock_memory):
         """Test execute with default limit."""
-        mock_memory_manager.search_memories.return_value = []
+        mock_memory.recall.return_value = []
 
         result = await recall_memory_tool.execute(query="test")
 
         # Verify default limit was used
-        mock_memory_manager.search_memories.assert_called_once()
-        call_kwargs = mock_memory_manager.search_memories.call_args[1]
+        mock_memory.recall.assert_called_once()
+        call_kwargs = mock_memory.recall.call_args[1]
         assert call_kwargs["top_k"] == 5
         # Verify result structure
         assert result["success"] is True
 
     @pytest.mark.asyncio
-    async def test_execute_no_memories_found(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_no_memories_found(self, recall_memory_tool, mock_memory):
         """Test execute when no memories are found."""
-        mock_memory_manager.search_memories.return_value = []
+        mock_memory.recall.return_value = []
 
         result = await recall_memory_tool.execute(query="nonexistent")
 
@@ -228,75 +225,80 @@ class TestRecallMemoryTool:
         assert "No relevant memories found" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_execute_missing_query(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_missing_query(self, recall_memory_tool, mock_memory):
         """Test execute fails when query is missing."""
         with pytest.raises(ToolExecutionError, match="Missing required parameter: query"):
             await recall_memory_tool.execute()
 
     @pytest.mark.asyncio
-    async def test_execute_empty_query(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_empty_query(self, recall_memory_tool, mock_memory):
         """Test execute fails when query is empty."""
         with pytest.raises(ToolExecutionError, match="Missing required parameter: query"):
             await recall_memory_tool.execute(query="")
 
     @pytest.mark.asyncio
-    async def test_execute_memory_manager_error(self, recall_memory_tool, mock_memory_manager):
+    async def test_execute_memory_manager_error(self, recall_memory_tool, mock_memory):
         """Test execute handles memory manager errors."""
-        mock_memory_manager.search_memories.side_effect = Exception("Database error")
+        mock_memory.recall.side_effect = Exception("Database error")
 
         with pytest.raises(ToolExecutionError, match="Failed to recall memories"):
             await recall_memory_tool.execute(query="test")
 
     @pytest.mark.asyncio
-    async def test_execute_formats_importance(self, recall_memory_tool, mock_memory_manager):
-        """Test that importance scores are formatted correctly."""
-        mock_memories = [
-            {
-                "type": "fact",
-                "content": "Test memory",
-                "importance": 0.755,
-            }
+    async def test_execute_formats_trust_and_source(self, recall_memory_tool, mock_memory):
+        """The LLM is told what each recollection is worth and where it came from.
+
+        This replaces a test asserting importance was formatted into the result.
+        The change is deliberate (spec §5): importance is salience and is the
+        backend's own bookkeeping, while trust and source are what let the model
+        hedge on a shaky inference instead of asserting it. Retrieval is not
+        endorsement, and the tool output now says so.
+        """
+        mock_memory.recall.return_value = [
+            make_record("Test memory", category="fact", trust=0.5, source="behavioral"),
         ]
-        mock_memory_manager.search_memories.return_value = mock_memories
 
         result = await recall_memory_tool.execute(query="test")
 
-        # Check that importance is formatted with 2 decimal places
-        assert (
-            "(importance: 0.76)" in result["message"] or "(importance: 0.75)" in result["message"]
-        )
+        assert "(trust: 0.50, source: behavioral)" in result["message"]
+        assert "importance" not in result["message"]
 
     @pytest.mark.asyncio
-    async def test_execute_handles_missing_fields(self, recall_memory_tool, mock_memory_manager):
-        """Test execute handles memories with missing fields."""
-        mock_memories = [
-            {
-                "content": "Memory without type",
-                # Missing type and importance
-            },
-            {
-                "type": "preference",
-                # Missing content and importance
-            },
+    async def test_execute_distinguishes_stated_from_inferred(
+        self, recall_memory_tool, mock_memory
+    ):
+        """A user-stated fact and an inference are visibly different to the model."""
+        mock_memory.recall.return_value = [
+            make_record("Ana takes pills at 8", source="explicit_user", trust=1.0),
+            make_record("Ana probably dislikes cold", source="behavioral", trust=0.5),
         ]
-        mock_memory_manager.search_memories.return_value = mock_memories
+
+        result = await recall_memory_tool.execute(query="Ana")
+
+        assert "(trust: 1.00, source: explicit_user)" in result["message"]
+        assert "(trust: 0.50, source: behavioral)" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_recall_results_cannot_have_missing_fields(self, recall_memory_tool, mock_memory):
+        """The contract makes "memory without type/content" unrepresentable.
+
+        This replaces a test that fed the tool dicts missing `type` and
+        `content`. MemoryRecord requires both, so the tool can no longer be
+        handed one -- the failure mode is gone rather than defended against.
+        """
+        mock_memory.recall.return_value = [make_record("Complete memory", category="preference")]
 
         result = await recall_memory_tool.execute(query="test")
 
-        # Should not crash, should use defaults
         assert result["success"] is True
-        assert "Found 2 relevant memories" in result["message"]
-
-
-class TestToolIntegration:
-    """Integration tests for memory tools."""
+        assert "[Preference] Complete memory" in result["message"]
 
     @pytest.mark.asyncio
-    async def test_store_and_recall_workflow(self, mock_hass, mock_memory_manager):
+    async def test_store_and_recall_workflow(self, mock_hass, mock_memory):
         """Test complete workflow of storing and recalling a memory."""
         # Store a memory
-        store_tool = StoreMemoryTool(mock_hass, mock_memory_manager, "conv_123")
-        mock_memory_manager.add_memory.return_value = "mem_xyz"
+        store_tool = StoreMemoryTool(mock_hass, mock_memory, "conv_123")
+        mock_memory.fast_track.return_value = "mem_xyz"
 
         store_result = await store_tool.execute(
             content="User's favorite color is blue",
@@ -307,24 +309,28 @@ class TestToolIntegration:
         assert store_result["success"] is True
 
         # Recall the memory
-        recall_tool = RecallMemoryTool(mock_hass, mock_memory_manager)
-        mock_memory_manager.search_memories.return_value = [
-            {
-                "type": "preference",
-                "content": "User's favorite color is blue",
-                "importance": 0.7,
-            }
+        recall_tool = RecallMemoryTool(mock_hass, mock_memory)
+        mock_memory.recall.return_value = [
+            make_record(
+                "User's favorite color is blue",
+                category="preference",
+                source="explicit_user",
+                trust=1.0,
+                importance=0.7,
+            )
         ]
 
         recall_result = await recall_tool.execute(query="favorite color")
 
         assert recall_result["success"] is True
         assert "favorite color is blue" in recall_result["message"]
+        # Stored via the tool, so it comes back as the resident's own word.
+        assert "source: explicit_user" in recall_result["message"]
 
-    def test_both_tools_registered_correctly(self, mock_hass, mock_memory_manager):
+    def test_both_tools_registered_correctly(self, mock_hass, mock_memory):
         """Test that both tools can be instantiated and have correct names."""
-        store_tool = StoreMemoryTool(mock_hass, mock_memory_manager)
-        recall_tool = RecallMemoryTool(mock_hass, mock_memory_manager)
+        store_tool = StoreMemoryTool(mock_hass, mock_memory)
+        recall_tool = RecallMemoryTool(mock_hass, mock_memory)
 
         assert store_tool.name == TOOL_STORE_MEMORY
         assert recall_tool.name == TOOL_RECALL_MEMORY

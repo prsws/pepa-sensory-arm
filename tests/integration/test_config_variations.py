@@ -954,7 +954,9 @@ async def test_embedding_provider_openai(
 
             # Mock the OpenAI embedding call
             with patch.object(
-                vector_db_manager, "_embed_with_openai", new_callable=AsyncMock
+                vector_db_manager.chroma_factory.embedder,
+                "_embed_with_openai",
+                new_callable=AsyncMock,
             ) as mock_openai_embed:
                 mock_openai_embed.return_value = [0.1] * 1536  # Typical OpenAI embedding size
 
@@ -968,7 +970,8 @@ async def test_embedding_provider_openai(
 
             # Verify provider is set correctly
             assert (
-                vector_db_manager.embedding_provider == EMBEDDING_PROVIDER_OPENAI
+                vector_db_manager.chroma_factory.embedder.embedding_provider
+                == EMBEDDING_PROVIDER_OPENAI
             ), "Embedding provider should be openai"
 
 
@@ -1035,7 +1038,7 @@ async def test_openai_embedding_with_custom_base_url(
 
             # Verify the embedding_base_url is set from config
             assert (
-                vector_db_manager.embedding_base_url == custom_base_url
+                vector_db_manager.chroma_factory.embedder.embedding_base_url == custom_base_url
             ), "Custom base_url should be set from config"
 
             # Mock the OpenAI client and embedding call
@@ -1073,7 +1076,8 @@ async def test_openai_embedding_with_custom_base_url(
 
             # Verify provider is set correctly
             assert (
-                vector_db_manager.embedding_provider == EMBEDDING_PROVIDER_OPENAI
+                vector_db_manager.chroma_factory.embedder.embedding_provider
+                == EMBEDDING_PROVIDER_OPENAI
             ), "Embedding provider should be openai"
 
 
@@ -1133,7 +1137,9 @@ async def test_embedding_provider_ollama(
 
             # Mock the Ollama embedding call
             with patch.object(
-                vector_db_manager, "_embed_with_ollama", new_callable=AsyncMock
+                vector_db_manager.chroma_factory.embedder,
+                "_embed_with_ollama",
+                new_callable=AsyncMock,
             ) as mock_ollama_embed:
                 mock_ollama_embed.return_value = [0.1] * 1024  # Typical Ollama embedding size
 
@@ -1147,7 +1153,8 @@ async def test_embedding_provider_ollama(
 
             # Verify provider is set correctly
             assert (
-                vector_db_manager.embedding_provider == EMBEDDING_PROVIDER_OLLAMA
+                vector_db_manager.chroma_factory.embedder.embedding_provider
+                == EMBEDDING_PROVIDER_OLLAMA
             ), "Embedding provider should be ollama"
 
 
@@ -1203,9 +1210,9 @@ async def test_memory_extraction_llm_local(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock()
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock()
+        agent._memory = mock_memory
 
         # Mock the local LLM extraction call
         with patch.object(
@@ -1295,9 +1302,9 @@ async def test_memory_extraction_llm_external(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock()
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock()
+        agent._memory = mock_memory
 
         # Mock the tool handler to capture external LLM call
         with patch.object(
@@ -1960,10 +1967,10 @@ async def test_memory_extraction_event_respects_emit_events(
         agent = PepaSensoryArm(test_hass, config, session_manager)
 
         # Mock memory manager
-        mock_memory_manager = MagicMock()
-        mock_memory_manager.add_memory = AsyncMock(return_value="memory_id_123")
-        mock_memory_manager._is_transient_state = MagicMock(return_value=False)
-        agent._memory_manager = mock_memory_manager
+        mock_memory = MagicMock()
+        mock_memory.write = AsyncMock(return_value="memory_id_123")
+        mock_memory._is_transient_state = MagicMock(return_value=False)
+        agent._memory = mock_memory
 
         # Track events
         events_fired = []
@@ -2062,7 +2069,7 @@ async def test_memory_extraction_event_respects_emit_events(
 
             # Verify memory was still stored (functionality works)
             assert (
-                mock_memory_manager.add_memory.call_count == 2
+                mock_memory.write.call_count == 2
             ), "Memory extraction should work regardless of emit_events"
 
         finally:

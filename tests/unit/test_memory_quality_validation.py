@@ -77,7 +77,7 @@ def pepa_sensory_arm(mock_hass, agent_config, memory_manager):
 
                 session_manager = ConversationSessionManager(mock_hass)
                 agent = PepaSensoryArm(mock_hass, agent_config, session_manager)
-                agent._memory_manager = memory_manager
+                agent._memory = memory_manager
                 return agent
 
 
@@ -146,7 +146,7 @@ class TestMemoryQualityValidation:
     async def test_rejects_short_memories(self, pepa_sensory_arm):
         """Test that memories with less than 10 meaningful words are rejected."""
         # Mock the memory manager's add_memory to track calls
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         short_memories = [
             {
@@ -168,12 +168,12 @@ class TestMemoryQualityValidation:
 
         # No memories should be stored
         assert stored_count == 0
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 0
+        assert pepa_sensory_arm.memory.write.call_count == 0
 
     @pytest.mark.asyncio
     async def test_rejects_low_importance_memories(self, pepa_sensory_arm):
         """Test that memories with importance < 0.4 are rejected."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         low_importance_memories = [
             {
@@ -194,12 +194,12 @@ class TestMemoryQualityValidation:
         )
 
         assert stored_count == 0
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 0
+        assert pepa_sensory_arm.memory.write.call_count == 0
 
     @pytest.mark.asyncio
     async def test_rejects_low_value_starting_patterns(self, pepa_sensory_arm):
         """Test that memories starting with low-value phrases are rejected."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         low_value_memories = [
             {
@@ -230,12 +230,12 @@ class TestMemoryQualityValidation:
         )
 
         assert stored_count == 0
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 0
+        assert pepa_sensory_arm.memory.write.call_count == 0
 
     @pytest.mark.asyncio
     async def test_rejects_transient_state_content(self, pepa_sensory_arm):
         """Test that transient state and low-quality content is rejected for all types."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         transient_memories = [
             {
@@ -260,12 +260,12 @@ class TestMemoryQualityValidation:
         )
 
         assert stored_count == 0
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 0
+        assert pepa_sensory_arm.memory.write.call_count == 0
 
     @pytest.mark.asyncio
     async def test_accepts_high_quality_memories(self, pepa_sensory_arm):
         """Test that high-quality memories pass all validation checks and are stored."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         good_memories = [
             {
@@ -316,19 +316,20 @@ class TestMemoryQualityValidation:
 
         # All 4 memories should be stored
         assert stored_count == 4
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 4
+        assert pepa_sensory_arm.memory.write.call_count == 4
 
         # Verify the content of stored memories
         for i, memory in enumerate(good_memories):
-            call_kwargs = pepa_sensory_arm.memory_manager.add_memory.call_args_list[i][1]
+            call_kwargs = pepa_sensory_arm.memory.write.call_args_list[i][1]
             assert call_kwargs["content"] == memory["content"]
-            assert call_kwargs["memory_type"] == memory["type"]
-            assert call_kwargs["importance"] == memory["importance"]
+            assert call_kwargs["category"] == memory["type"]
+            # importance is salience and lives in metadata; the top-level axis is trust.
+            assert call_kwargs["metadata"]["importance"] == memory["importance"]
 
     @pytest.mark.asyncio
     async def test_mixed_quality_memories(self, pepa_sensory_arm):
         """Test that only high-quality memories are stored when mixed with low-quality."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         mixed_memories = [
             # Good memory - should be stored
@@ -400,11 +401,11 @@ class TestMemoryQualityValidation:
 
         # Only 3 good memories should be stored
         assert stored_count == 3
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 3
+        assert pepa_sensory_arm.memory.write.call_count == 3
 
         # Verify that the right memories were stored (the good ones)
         stored_contents = [
-            call[1]["content"] for call in pepa_sensory_arm.memory_manager.add_memory.call_args_list
+            call[1]["content"] for call in pepa_sensory_arm.memory.write.call_args_list
         ]
         assert "User prefers bedroom temperature at 68°F" in stored_contents[0]
         assert "sensitive to bright lights" in stored_contents[1]
@@ -417,7 +418,7 @@ class TestMemoryValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_handles_empty_extraction_result(self, pepa_sensory_arm):
         """Test handling of empty memory extraction results."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         extraction_result = json.dumps([])
         stored_count = await pepa_sensory_arm._parse_and_store_memories(
@@ -425,12 +426,12 @@ class TestMemoryValidationEdgeCases:
         )
 
         assert stored_count == 0
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 0
+        assert pepa_sensory_arm.memory.write.call_count == 0
 
     @pytest.mark.asyncio
     async def test_word_count_excludes_short_words(self, pepa_sensory_arm):
         """Test that word count validation excludes very short words (<=2 chars)."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         # Content has 15 total words but only 6 meaningful words (>2 chars)
         # "a", "to", "at", "in", "is", "on", "of", "it", "or" are all <=2 chars
@@ -453,7 +454,7 @@ class TestMemoryValidationEdgeCases:
     @pytest.mark.asyncio
     async def test_importance_threshold_at_boundary(self, pepa_sensory_arm):
         """Test importance threshold at exactly 0.4 (boundary case)."""
-        pepa_sensory_arm.memory_manager.add_memory = AsyncMock(return_value="mem_123")
+        pepa_sensory_arm.memory.write = AsyncMock(return_value="mem_123")
 
         # Test at threshold boundary
         boundary_memories = [
@@ -482,4 +483,4 @@ class TestMemoryValidationEdgeCases:
 
         # Only the first one (0.4) should be stored
         assert stored_count == 1
-        assert pepa_sensory_arm.memory_manager.add_memory.call_count == 1
+        assert pepa_sensory_arm.memory.write.call_count == 1

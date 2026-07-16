@@ -88,6 +88,7 @@ from .const import (
     CONF_VECTOR_DB_PORT,
     CONF_VECTOR_DB_SIMILARITY_THRESHOLD,
     CONF_VECTOR_DB_TOP_K,
+    CONFIG_ENTRY_VERSION,
     CONTEXT_FORMAT_HYBRID,
     CONTEXT_FORMAT_JSON,
     CONTEXT_FORMAT_NATURAL_LANGUAGE,
@@ -237,7 +238,7 @@ class PepaSensoryArmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # typ
     integration, including initial LLM setup and validation.
     """
 
-    VERSION = 1
+    VERSION = CONFIG_ENTRY_VERSION
 
     def __init__(self) -> None:
         """Initialize the config flow."""

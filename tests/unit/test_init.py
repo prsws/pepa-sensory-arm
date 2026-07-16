@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from custom_components.pepa_sensory_arm import (
+    async_migrate_entry,
     async_reload_entry,
     async_remove_services,
     async_setup,
@@ -15,7 +16,9 @@ from custom_components.pepa_sensory_arm import (
     async_unload_entry,
 )
 from custom_components.pepa_sensory_arm.const import (
+    CHROMA_PLACEMENT_EMBEDDED,
     CHROMA_PLACEMENT_REMOTE,
+    CONF_CHROMA_PLACEMENT,
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
     CONF_TOOLS_CUSTOM,
@@ -23,6 +26,8 @@ from custom_components.pepa_sensory_arm.const import (
     DEFAULT_MEMORY_ENABLED,
     DOMAIN,
 )
+
+from .conftest import make_record
 
 
 @pytest.fixture
@@ -98,11 +103,11 @@ def mock_memory_manager():
     manager = MagicMock()
     manager.async_initialize = AsyncMock()
     manager.async_shutdown = AsyncMock()
-    manager.list_all_memories = AsyncMock(return_value=[])
-    manager.delete_memory = AsyncMock(return_value=True)
-    manager.clear_all_memories = AsyncMock(return_value=0)
-    manager.search_memories = AsyncMock(return_value=[])
-    manager.add_memory = AsyncMock(return_value="mem_123")
+    manager.list_all = AsyncMock(return_value=[])
+    manager.delete = AsyncMock(return_value=True)
+    manager.clear_all = AsyncMock(return_value=0)
+    manager.recall = AsyncMock(return_value=[])
+    manager.write = AsyncMock(return_value="mem_123")
     return manager
 
 
@@ -412,6 +417,7 @@ class TestAsyncSetupEntry:
         mock_vector_class,
         mock_agent_class,
         mock_session_manager_class,
+        mock_chroma_factory_class,
         mock_hass,
         mock_config_entry,
         mock_agent,
@@ -440,9 +446,12 @@ class TestAsyncSetupEntry:
         assert "vector_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
         assert "memory_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
 
-        # Verify memory manager was passed the vector manager
+        # Memory is wired to the factory, never to the vector manager. This
+        # assertion used to require the opposite -- it was the borrowed client's
+        # own regression test, pinning the bug in place.
         call_args = mock_memory_class.call_args
-        assert call_args[1]["vector_db_manager"] == mock_vector_manager
+        assert call_args[1]["chroma_factory"] is mock_chroma_factory_class.return_value
+        assert "vector_db_manager" not in call_args[1]
 
     @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
     @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")
@@ -983,20 +992,20 @@ class TestServiceHandlers:
     async def test_handle_list_memories_service(self, mock_hass, mock_memory_manager):
         """Test list_memories service handler."""
         entry_id = "test_entry"
-        mock_memory_manager.list_all_memories = AsyncMock(
+        mock_memory_manager.list_all = AsyncMock(
             return_value=[
-                {
-                    "id": "mem1",
-                    "type": "fact",
-                    "content": "Test memory",
-                    "importance": 0.7,
-                    "extracted_at": "2024-01-01T00:00:00",
-                    "last_accessed": "2024-01-02T00:00:00",
-                    "source_conversation_id": "conv1",
-                }
+                make_record(
+                    "Test memory",
+                    memory_id="mem1",
+                    category="fact",
+                    importance=0.7,
+                    source_conversation_id="conv1",
+                )
             ]
         )
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1016,7 +1025,7 @@ class TestServiceHandlers:
         assert result["total"] == 1
         assert result["memories"][0]["id"] == "mem1"
         assert result["memories"][0]["type"] == "fact"
-        mock_memory_manager.list_all_memories.assert_called_once_with(limit=10, memory_type="fact")
+        mock_memory_manager.list_all.assert_called_once_with(limit=10, category="fact")
 
     async def test_handle_list_memories_no_manager(self, mock_hass):
         """Test list_memories when memory manager not enabled."""
@@ -1042,7 +1051,9 @@ class TestServiceHandlers:
     async def test_handle_delete_memory_service(self, mock_hass, mock_memory_manager):
         """Test delete_memory service handler."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1059,7 +1070,7 @@ class TestServiceHandlers:
 
         await delete_handler(service_call)
 
-        mock_memory_manager.delete_memory.assert_called_once_with("mem_123")
+        mock_memory_manager.delete.assert_called_once_with("mem_123")
 
     async def test_handle_delete_memory_no_manager(self, mock_hass):
         """Test delete_memory when memory manager not enabled."""
@@ -1083,8 +1094,10 @@ class TestServiceHandlers:
     async def test_handle_clear_memories_service(self, mock_hass, mock_memory_manager):
         """Test clear_memories service handler with confirmation."""
         entry_id = "test_entry"
-        mock_memory_manager.clear_all_memories = AsyncMock(return_value=25)
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.clear_all = AsyncMock(return_value=25)
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1102,13 +1115,15 @@ class TestServiceHandlers:
         result = await clear_handler(service_call)
 
         assert result["deleted_count"] == 25
-        mock_memory_manager.clear_all_memories.assert_called_once()
+        mock_memory_manager.clear_all.assert_called_once()
 
     async def test_handle_clear_memories_without_confirmation(self, mock_hass):
         """Test clear_memories without confirmation fails."""
         entry_id = "test_entry"
         mock_memory_manager = MagicMock()
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1129,18 +1144,19 @@ class TestServiceHandlers:
     async def test_handle_search_memories_service(self, mock_hass, mock_memory_manager):
         """Test search_memories service handler."""
         entry_id = "test_entry"
-        mock_memory_manager.search_memories = AsyncMock(
+        mock_memory_manager.recall = AsyncMock(
             return_value=[
-                {
-                    "id": "mem1",
-                    "type": "preference",
-                    "content": "User likes warm temperature",
-                    "importance": 0.8,
-                    "relevance_score": 0.95,
-                }
+                make_record(
+                    "User likes warm temperature",
+                    memory_id="mem1",
+                    category="preference",
+                    relevance_score=0.95,
+                )
             ]
         )
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1163,17 +1179,20 @@ class TestServiceHandlers:
 
         assert result["total"] == 1
         assert result["memories"][0]["relevance_score"] == 0.95
-        mock_memory_manager.search_memories.assert_called_once_with(
+        # min_importance filters salience in the service, not in recall():
+        # the contract has no importance filter and min_trust is not one.
+        mock_memory_manager.recall.assert_called_once_with(
             query="temperature preferences",
             top_k=5,
-            min_importance=0.5,
         )
 
     async def test_handle_search_memories_defaults(self, mock_hass, mock_memory_manager):
         """Test search_memories with default parameters."""
         entry_id = "test_entry"
-        mock_memory_manager.search_memories = AsyncMock(return_value=[])
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.recall = AsyncMock(return_value=[])
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1188,16 +1207,14 @@ class TestServiceHandlers:
 
         await search_handler(service_call)
 
-        mock_memory_manager.search_memories.assert_called_once_with(
-            query="test",
-            top_k=10,  # default
-            min_importance=0.0,  # default
-        )
+        mock_memory_manager.recall.assert_called_once_with(query="test", top_k=10)
 
     async def test_handle_add_memory_service(self, mock_hass, mock_memory_manager):
         """Test add_memory service handler."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1219,20 +1236,24 @@ class TestServiceHandlers:
         result = await add_handler(service_call)
 
         assert result["memory_id"] == "mem_123"
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory_manager.write.assert_called_once()
 
         # Verify the call arguments
-        call_args = mock_memory_manager.add_memory.call_args
+        call_args = mock_memory_manager.write.call_args
         assert call_args[1]["content"] == "User prefers lights at 50%"
-        assert call_args[1]["memory_type"] == "preference"
-        assert call_args[1]["importance"] == 0.7
+        assert call_args[1]["category"] == "preference"
+        # A service-call write is the user stating something.
+        assert call_args[1]["source"] == "explicit_user"
+        assert call_args[1]["metadata"]["importance"] == 0.7
         assert call_args[1]["conversation_id"] is None
         assert call_args[1]["metadata"]["extraction_method"] == "manual_service"
 
     async def test_handle_add_memory_with_defaults(self, mock_hass, mock_memory_manager):
         """Test add_memory with default values."""
         entry_id = "test_entry"
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1250,9 +1271,9 @@ class TestServiceHandlers:
         assert result["memory_id"] == "mem_123"
 
         # Verify defaults were used
-        call_args = mock_memory_manager.add_memory.call_args
-        assert call_args[1]["memory_type"] == "fact"  # default
-        assert call_args[1]["importance"] == 0.5  # default
+        call_args = mock_memory_manager.write.call_args
+        assert call_args[1]["category"] == "fact"  # default
+        assert call_args[1]["metadata"]["importance"] == 0.5  # default
 
 
 class TestAsyncRemoveServices:
@@ -1386,8 +1407,10 @@ class TestServiceErrorHandling:
     async def test_memory_manager_error_propagates(self, mock_hass, mock_memory_manager):
         """Test that memory manager errors are propagated."""
         entry_id = "test_entry"
-        mock_memory_manager.add_memory.side_effect = Exception("Database error")
-        mock_hass.data[DOMAIN] = {entry_id: {"memory_manager": mock_memory_manager}}
+        mock_memory_manager.write.side_effect = Exception("Database error")
+        mock_hass.data[DOMAIN] = {
+            entry_id: {"memory": mock_memory_manager, "memory_manager": mock_memory_manager}
+        }
 
         await async_setup_services(mock_hass, entry_id)
 
@@ -1422,3 +1445,65 @@ class TestServiceErrorHandling:
 
         with pytest.raises(Exception, match="Index error"):
             await reindex_handler(service_call)
+
+
+class TestConfigEntryMigration:
+    """Test async_migrate_entry.
+
+    Version 2 made ChromaDB placement configurable and defaulted it to embedded.
+    Every version 1 entry ran remote, because HttpClient was the only behavior
+    there was. The migration pins that explicitly so an upgrade never silently
+    relocates a running install's vector store into the Home Assistant VM.
+    """
+
+    async def test_v1_entry_is_pinned_to_remote(self, mock_hass, mock_config_entry):
+        """A version 1 entry keeps the behavior it already had."""
+        mock_config_entry.version = 1
+        mock_config_entry.data = {"llm_model": "gemma4:e4b"}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        mock_hass.config_entries.async_update_entry.assert_called_once()
+        kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+        assert kwargs["version"] == 2
+        assert kwargs["data"][CONF_CHROMA_PLACEMENT] == CHROMA_PLACEMENT_REMOTE
+        # Existing configuration survives the migration untouched.
+        assert kwargs["data"]["llm_model"] == "gemma4:e4b"
+
+    async def test_migration_does_not_override_an_explicit_placement(
+        self, mock_hass, mock_config_entry
+    ):
+        """A placement the user already chose is not overwritten."""
+        mock_config_entry.version = 1
+        mock_config_entry.data = {CONF_CHROMA_PLACEMENT: CHROMA_PLACEMENT_EMBEDDED}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+        assert kwargs["data"][CONF_CHROMA_PLACEMENT] == CHROMA_PLACEMENT_EMBEDDED
+
+    async def test_current_version_entry_is_left_alone(self, mock_hass, mock_config_entry):
+        """An entry already at the current version needs no migration."""
+        mock_config_entry.version = 2
+        mock_config_entry.data = {}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        mock_hass.config_entries.async_update_entry.assert_not_called()
+
+    async def test_future_version_entry_fails_rather_than_guessing(
+        self, mock_hass, mock_config_entry
+    ):
+        """A downgrade is refused: we cannot know what a newer schema meant."""
+        mock_config_entry.version = 99
+        mock_config_entry.data = {}
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is False

@@ -15,6 +15,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from .chroma_factory import ChromaClientFactory
 from .const import (
     CONF_MEMORY_CLEANUP_INTERVAL,
     CONF_MEMORY_COLLECTION_NAME,
@@ -41,8 +42,18 @@ from .const import (
     MEMORY_STORAGE_KEY,
     MEMORY_STORAGE_VERSION,
 )
+from .embedder import CACHE_NS_MEMORY
 from .exceptions import ContextInjectionError
 from .memory.validator import MemoryValidator
+from .memory_interface import (
+    Category,
+    EpistemicClass,
+    MemoryCapabilities,
+    MemoryCapabilityError,
+    MemoryInterface,
+    MemoryRecord,
+    Source,
+)
 
 # Conditional import for ChromaDB
 try:
@@ -64,24 +75,40 @@ MEMORY_TYPE_EVENT = "event"
 IMPORTANCE_ACCESS_BOOST = 0.05
 
 
+def _assert_satisfies_contract(backend: MemoryManager) -> MemoryInterface:
+    """Static proof that MemoryManager satisfies MemoryInterface.
+
+    Never called. It exists so mypy checks the *signatures*, which is the one
+    thing the runtime check cannot do: @runtime_checkable verifies that members
+    are present, not that they take the right arguments, so isinstance() would
+    happily accept a backend whose write() is the wrong shape. Delete this and
+    the contract silently becomes documentation.
+    """
+    return backend
+
+
 class MemoryManager:
     """Manages long-term memories with dual storage."""
 
     def __init__(
         self,
         hass: HomeAssistant,
-        vector_db_manager: Any,
+        chroma_factory: ChromaClientFactory | None,
         config: dict[str, Any],
     ) -> None:
         """Initialize the Memory Manager.
 
         Args:
             hass: Home Assistant instance
-            vector_db_manager: VectorDBManager instance for ChromaDB operations
+            chroma_factory: The entry's ChromaDB client factory, or None if
+                ChromaDB is unavailable. Memory gets its vector capability from
+                here and from nowhere else -- it no longer borrows a client from
+                VectorDBManager, so the entity-context Context Mode has no
+                bearing on whether memory can search, sync, or dedup.
             config: Configuration dictionary
         """
         self.hass = hass
-        self.vector_db_manager = vector_db_manager
+        self.chroma_factory = chroma_factory
         self.config = config
 
         # Configuration
@@ -120,6 +147,8 @@ class MemoryManager:
         self._cleanup_task: asyncio.Task[None] | None = None
         self._last_quality_validation: float = 0.0  # Track last quality validation time
         self._memory_validator: MemoryValidator | None = None
+        # Ops we have already warned about, so degradation is loud once, not spam.
+        self._warned_unsupported: set[str] = set()
 
         _LOGGER.info(
             "Memory Manager initialized (max=%d, collection=%s)",
@@ -143,7 +172,7 @@ class MemoryManager:
                 _LOGGER.info("No existing memories found, starting fresh")
 
             # Initialize ChromaDB collection if available
-            if CHROMADB_AVAILABLE and self.vector_db_manager:
+            if CHROMADB_AVAILABLE and self.chroma_factory:
                 try:
                     await self._ensure_chromadb_initialized()
                     self._chromadb_available = True
@@ -238,6 +267,9 @@ class MemoryManager:
             if not 0.0 <= importance <= 1.0:
                 raise ValueError("Importance must be between 0.0 and 1.0")
 
+            # NOTE: merge-and-reinforce dedup = false-memory-climb (Ledger §5);
+            # survives here only until P8. Behavior is byte-identical to
+            # pre-contract; write() delegates straight through it on purpose.
             # Check for duplicates
             if self._chromadb_available:
                 duplicate_id = await self._find_duplicate(content)
@@ -426,7 +458,7 @@ class MemoryManager:
 
         try:
             # Generate embedding for query
-            embedding = await self.vector_db_manager._embed_text(query)
+            embedding = await self._require_factory().embed_text(query, namespace=CACHE_NS_MEMORY)
 
             # Query ChromaDB with include for documents and metadata
             results = await self.hass.async_add_executor_job(
@@ -526,7 +558,7 @@ class MemoryManager:
 
         try:
             # Generate embedding for query
-            embedding = await self.vector_db_manager._embed_text(query)
+            embedding = await self._require_factory().embed_text(query, namespace=CACHE_NS_MEMORY)
 
             # Query ChromaDB - ensure n_results is at least 1
             n_results = min(top_k * 2, len(self._memories))
@@ -710,13 +742,14 @@ class MemoryManager:
     async def _ensure_chromadb_initialized(self) -> None:
         """Ensure ChromaDB collection is initialized."""
         if self._collection is None:
-            if not self.vector_db_manager or not self.vector_db_manager._client:
-                raise ContextInjectionError("VectorDBManager client not available")
+            if not self.chroma_factory:
+                raise ContextInjectionError("ChromaDB client factory not available")
 
             from functools import partial
 
+            client = await self.chroma_factory.get_client()
             get_collection = partial(
-                self.vector_db_manager._client.get_or_create_collection,
+                client.get_or_create_collection,
                 name=self.collection_name,
                 metadata={"description": "Pepa Sensory Arm long-term memories"},
             )
@@ -780,7 +813,7 @@ class MemoryManager:
 
         try:
             # Generate embedding
-            embedding = await self.vector_db_manager._embed_text(content)
+            embedding = await self._require_factory().embed_text(content, namespace=CACHE_NS_MEMORY)
 
             # Query ChromaDB for similar memories (check top 5 to catch more duplicates)
             if self._collection is None:
@@ -839,7 +872,9 @@ class MemoryManager:
             await self._ensure_chromadb_initialized()
 
             # Generate embedding
-            embedding = await self.vector_db_manager._embed_text(memory["content"])
+            embedding = await self._require_factory().embed_text(
+                memory["content"], namespace=CACHE_NS_MEMORY
+            )
 
             # Prepare metadata (ChromaDB requires simple types)
             metadata = {
@@ -910,6 +945,282 @@ class MemoryManager:
                     memory["id"],
                     err,
                 )
+
+    # ---- MemoryInterface implementation ---------------------------------
+    #
+    # The interim backend. These operations are the contract's surface; the
+    # methods above are the implementation they delegate to, kept as-is so this
+    # commit changes no behavior. See memory_interface.py for the semantics and
+    # docs/MEMORY_INTERFACE.md for what does not work yet.
+
+    @property
+    def capabilities(self) -> MemoryCapabilities:
+        """What this backend can actually do. Declared honestly, noes included.
+
+        vector_recall follows the factory's bounded-staleness availability flag
+        rather than the init-time _chromadb_available, which is set once in
+        async_initialize and never re-probed -- init-time state masquerading as
+        live state is itself a silent degradation.
+        """
+        return MemoryCapabilities(
+            supersession=False,
+            trust_dynamics=False,
+            vector_recall=bool(
+                self._chromadb_available and self.chroma_factory and self.chroma_factory.available
+            ),
+            durable_fast_track=True,
+            provenance_enforced=False,
+        )
+
+    def _require_factory(self) -> ChromaClientFactory:
+        """Return the factory, or fail clearly if memory has no vector capability.
+
+        The call sites below are all reached only after a _chromadb_available
+        check, which implies a factory -- but that is an invariant the type system
+        cannot see, and a bare assert would read as if it could never fire.
+
+        Raises:
+            ContextInjectionError: If no factory was provided.
+        """
+        if self.chroma_factory is None:
+            raise ContextInjectionError("ChromaDB client factory not available")
+        return self.chroma_factory
+
+    def _warn_unsupported_once(self, op: str) -> None:
+        """Log an unsupported operation once per session. Loud, not spammy."""
+        if op in self._warned_unsupported:
+            return
+        self._warned_unsupported.add(op)
+        _LOGGER.warning(
+            "%s() is not supported by the interim MemoryManager backend; "
+            "arrives with the Memory Arm backend",
+            op,
+        )
+
+    def _to_record(self, memory_id: str, memory: dict[str, Any]) -> MemoryRecord:
+        """Map an interim-backend memory dict onto the contract's record.
+
+        The interim backend's own fields (importance, expires_at, is_transient,
+        entities_involved, topics, extraction_method) stay in metadata: they are
+        implementation detail, not contract.
+        """
+        metadata = dict(memory.get("metadata") or {})
+        for key in (
+            "importance",
+            "expires_at",
+            "is_transient",
+            "last_accessed",
+            "access_count",
+            # Set by search_memories on its results; carried so the search
+            # service can keep reporting it rather than silently dropping it.
+            "relevance_score",
+        ):
+            if key in memory:
+                metadata[key] = memory[key]
+
+        source: Source = self._derive_source(memory)
+        return MemoryRecord(
+            id=memory_id,
+            content=memory["content"],
+            category=memory["type"],
+            source=source,
+            created_at=memory.get("extracted_at", 0.0),
+            updated_at=memory.get("last_accessed", memory.get("extracted_at", 0.0)),
+            trust=self._derive_trust(memory, source),
+            # No supersession in this backend; every record reads as current.
+            superseded_by=None,
+            metadata=metadata,
+        )
+
+    @staticmethod
+    def _derive_source(memory: dict[str, Any]) -> Source:
+        """Derive provenance from how the memory was written.
+
+        Provenance is immutable by contract, but this backend has no column for
+        it, so it is reconstructed from extraction_method. Writes that come
+        through write()/fast_track() record it explicitly; older rows fall back
+        to behavioral, which is the conservative reading -- claiming a memory was
+        user-stated when it was inferred would inflate its authority.
+        """
+        stored = (memory.get("metadata") or {}).get("source")
+        if stored == "explicit_user":
+            return "explicit_user"
+        if stored == "measured":
+            return "measured"
+        if stored == "behavioral":
+            return "behavioral"
+        if (memory.get("metadata") or {}).get("extraction_method") == "manual":
+            return "explicit_user"
+        return "behavioral"
+
+    @staticmethod
+    def _derive_trust(memory: dict[str, Any], source: Source) -> float:
+        """Derive epistemic weight at read.
+
+        Distinct from importance, which measures salience and lives in metadata.
+        A user-stated fact is fully trusted; anything inferred sits at 0.5 until
+        a backend with trust dynamics can move it.
+
+        Provenance decides, and the extraction_method heuristic is only consulted
+        when provenance is absent. The order matters: add_memory() defaults
+        extraction_method to "manual" for any write that does not set it, so
+        reading the heuristic first would hand full trust to every behavioral
+        inference that came through write(). Pepa would believe its own guesses
+        as firmly as the resident's own words.
+        """
+        if source == "explicit_user":
+            return 1.0
+        if (memory.get("metadata") or {}).get("source") in ("behavioral", "measured"):
+            return 0.5
+        # Legacy rows written before the contract carry no source; fall back to
+        # how they were extracted.
+        if (memory.get("metadata") or {}).get("extraction_method") == "manual":
+            return 1.0
+        return 0.5
+
+    async def write(
+        self,
+        content: str,
+        category: Category,
+        source: Source,
+        *,
+        epistemic_class: EpistemicClass = "observation",
+        trust: float | None = None,
+        safety_critical: bool = False,
+        attribute: str | None = None,
+        conversation_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Persist a belief. See MemoryInterface.write.
+
+        Delegates to add_memory unchanged, dedup merge path included. That path
+        is a false-memory-climb engine (Ledger §5) and does not survive the
+        refactor, but killing it is P8's job -- doing it here would smuggle a
+        behavior change into a contract commit.
+        """
+        record_metadata = dict(metadata or {})
+        record_metadata["source"] = source
+        record_metadata["epistemic_class"] = epistemic_class
+        if attribute is not None:
+            record_metadata["attribute"] = attribute
+        if safety_critical:
+            record_metadata["safety_critical"] = True
+
+        # Importance is salience and stays the interim backend's own axis; trust
+        # is epistemic weight and is derived at read. Never map one onto the other.
+        importance = record_metadata.pop("importance", 0.5)
+
+        return await self.add_memory(
+            content=content,
+            memory_type=category,
+            conversation_id=conversation_id,
+            importance=importance,
+            metadata=record_metadata,
+        )
+
+    async def fast_track(
+        self,
+        content: str,
+        *,
+        category: Category = "fact",
+        conversation_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """The "remember this" path. See MemoryInterface.fast_track.
+
+        Durability is the contract here: when the resident says "remember this",
+        the thing is remembered by the time Pepa answers, not a second later. So
+        this awaits the store write directly instead of going through the
+        debounced _schedule_save -- for this operation only.
+        """
+        record_metadata = dict(metadata or {})
+        record_metadata["extraction_method"] = "manual"
+
+        memory_id = await self.write(
+            content=content,
+            category=category,
+            source="explicit_user",
+            conversation_id=conversation_id,
+            metadata=record_metadata,
+        )
+
+        await self._save_to_store()
+        self._pending_save = False
+        return memory_id
+
+    async def recall(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        categories: list[Category] | None = None,
+        min_trust: float = 0.0,
+        include_superseded: bool = False,
+    ) -> list[MemoryRecord]:
+        """Semantic recall. See MemoryInterface.recall.
+
+        Retrieval is not endorsement: every record carries its trust, status, and
+        source so the caller decides how much authority to grant it.
+        """
+        memories = await self.search_memories(
+            query=query,
+            top_k=top_k,
+            memory_types=list(categories) if categories else None,
+        )
+
+        records = [self._to_record(m["id"], m) for m in memories]
+        if min_trust > 0.0:
+            records = [r for r in records if r.trust >= min_trust]
+        return records
+
+    async def supersede(
+        self,
+        old_id: str,
+        new_content: str,
+        *,
+        source: Source,
+        epistemic_class: EpistemicClass = "observation",
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Not supported by the interim backend. See MemoryInterface.supersede.
+
+        Explicitly a stub rather than a metadata-pointer approximation: a
+        half-built supersession chain would be worse than none, because callers
+        would start trusting it. The contract exists so the Memory Arm backend
+        lands into a socket that already fits.
+        """
+        self._warn_unsupported_once("supersede")
+        raise MemoryCapabilityError("supersede", "interim MemoryManager", "the Memory Arm backend")
+
+    async def get(self, memory_id: str) -> MemoryRecord | None:
+        """Fetch one record by id. See MemoryInterface.get."""
+        memory = await self.get_memory(memory_id)
+        if memory is None:
+            return None
+        return self._to_record(memory_id, memory)
+
+    async def delete(self, memory_id: str) -> bool:
+        """Hard delete. See MemoryInterface.delete.
+
+        No supersession in this backend, so there is no chain to orphan and
+        nothing to reject; a plain delete is correct here and would not be
+        against the target schema.
+        """
+        return await self.delete_memory(memory_id)
+
+    async def list_all(
+        self,
+        *,
+        category: Category | None = None,
+        limit: int = 100,
+    ) -> list[MemoryRecord]:
+        """List records. See MemoryInterface.list_all."""
+        memories = await self.list_all_memories(limit=limit, memory_type=category)
+        return [self._to_record(m["id"], m) for m in memories]
+
+    async def clear_all(self) -> int:
+        """Delete every record. See MemoryInterface.clear_all."""
+        return await self.clear_all_memories()
 
     async def _schedule_save(self) -> None:
         """Schedule a debounced save to HA Store."""

@@ -7,16 +7,13 @@ not all entities in the system.
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import aiohttp
 import pytest
 from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import Event, State
 
 from custom_components.pepa_sensory_arm.const import (
     CHROMA_PLACEMENT_REMOTE,
-    CONF_OPENAI_API_KEY,
     CONF_VECTOR_DB_COLLECTION,
-    CONF_VECTOR_DB_EMBEDDING_BASE_URL,
     CONF_VECTOR_DB_EMBEDDING_MODEL,
     CONF_VECTOR_DB_EMBEDDING_PROVIDER,
     CONF_VECTOR_DB_HOST,
@@ -24,9 +21,8 @@ from custom_components.pepa_sensory_arm.const import (
     DEFAULT_VECTOR_DB_COLLECTION,
     DEFAULT_VECTOR_DB_HOST,
     DEFAULT_VECTOR_DB_PORT,
-    EMBEDDING_PROVIDER_OLLAMA,
-    EMBEDDING_PROVIDER_OPENAI,
 )
+from custom_components.pepa_sensory_arm.embedder import CACHE_NS_ENTITY
 from custom_components.pepa_sensory_arm.exceptions import ContextInjectionError
 from custom_components.pepa_sensory_arm.vector_db_manager import VectorDBManager
 
@@ -357,40 +353,6 @@ async def test_async_setup_handles_chromadb_failure(
 
 
 @pytest.mark.asyncio
-async def test_async_shutdown_cleans_up_listeners(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that async_shutdown properly cleans up listeners and resources."""
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
-        manager._embed_text = AsyncMock(return_value=[0.1] * 384)
-
-        await manager._ensure_initialized()
-
-        # Set up listeners
-        state_listener_mock = MagicMock()
-        maintenance_listener_mock = MagicMock()
-        manager._state_listener = state_listener_mock
-        manager._maintenance_listener = maintenance_listener_mock
-
-        # Add some items to embedding cache
-        manager._embedding_cache["test_key"] = [0.1] * 384
-
-        # Shutdown
-        await manager.async_shutdown()
-
-        # Verify listeners were called (to unregister)
-        state_listener_mock.assert_called_once()
-        maintenance_listener_mock.assert_called_once()
-
-        # Verify listeners were cleared
-        assert manager._state_listener is None
-        assert manager._maintenance_listener is None
-
-        # Verify cache was cleared
-        assert len(manager._embedding_cache) == 0
-
-
 @pytest.mark.asyncio
 async def test_async_shutdown_handles_no_listeners(
     mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
@@ -413,506 +375,20 @@ async def test_async_shutdown_handles_no_listeners(
 
 
 @pytest.mark.asyncio
-async def test_embed_text_uses_cache(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that _embed_text uses cached embeddings when available."""
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
-
-        # Pre-populate cache
-        test_text = "test entity"
-        cached_embedding = [0.5] * 384
-        import hashlib
-
-        cache_key = hashlib.md5(test_text.encode()).hexdigest()
-        manager._embedding_cache[cache_key] = cached_embedding
-
-        # Mock the actual embedding methods to ensure they're not called
-        manager._embed_with_openai = AsyncMock()
-        manager._embed_with_ollama = AsyncMock()
-
-        # Get embedding
-        result = await manager._embed_text(test_text)
-
-        # Verify cache was used
-        assert result == cached_embedding
-        manager._embed_with_openai.assert_not_called()
-        manager._embed_with_ollama.assert_not_called()
-
-
 @pytest.mark.asyncio
-async def test_embed_text_cache_miss_generates_new(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that _embed_text generates new embedding on cache miss."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "new entity"
-        new_embedding = [0.7] * 384
-
-        # Mock the Ollama embedding method
-        manager._embed_with_ollama = AsyncMock(return_value=new_embedding)
-
-        # Get embedding (cache miss)
-        result = await manager._embed_text(test_text)
-
-        # Verify new embedding was generated
-        assert result == new_embedding
-        manager._embed_with_ollama.assert_called_once_with(test_text)
-
-        # Verify it was cached
-        import hashlib
-
-        cache_key = hashlib.md5(test_text.encode()).hexdigest()
-        assert cache_key in manager._embedding_cache
-        assert manager._embedding_cache[cache_key] == new_embedding
-
-
 @pytest.mark.asyncio
-async def test_embed_text_entity_id_evicts_stale_cache(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that _embed_text evicts stale cache entry when entity state changes."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        old_embedding = [0.1] * 384
-        new_embedding = [0.9] * 384
-        call_count = 0
-
-        async def _mock_ollama(text):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return old_embedding
-            return new_embedding
-
-        manager._embed_with_ollama = AsyncMock(side_effect=_mock_ollama)
-
-        entity_id = "sensor.temperature"
-        old_text = "Entity: Temperature | Current state: 72.1"
-        new_text = "Entity: Temperature | Current state: 72.2"
-
-        # First call — cache miss, generates embedding
-        result1 = await manager._embed_text(old_text, entity_id=entity_id)
-        assert result1 == old_embedding
-        assert len(manager._embedding_cache) == 1
-
-        # Second call with new state text for same entity — should evict old entry
-        result2 = await manager._embed_text(new_text, entity_id=entity_id)
-        assert result2 == new_embedding
-        # Old entry should be evicted, only new entry remains
-        assert len(manager._embedding_cache) == 1
-
-        import hashlib
-
-        old_key = hashlib.md5(old_text.encode()).hexdigest()
-        new_key = hashlib.md5(new_text.encode()).hexdigest()
-        assert old_key not in manager._embedding_cache
-        assert new_key in manager._embedding_cache
-        assert manager._entity_cache_keys[entity_id] == new_key
-
-
 @pytest.mark.asyncio
-async def test_embed_text_without_entity_id_no_eviction(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that _embed_text without entity_id preserves normal LRU behavior."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-        manager._embed_with_ollama = AsyncMock(return_value=[0.5] * 384)
-
-        # Two different texts without entity_id — both should stay in cache
-        await manager._embed_text("query text one")
-        await manager._embed_text("query text two")
-        assert len(manager._embedding_cache) == 2
-        assert len(manager._entity_cache_keys) == 0
-
-
 @pytest.mark.asyncio
-async def test_remove_entity_cleans_embedding_cache(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that async_remove_entity cleans up the embedding cache entry."""
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(
-            mock_hass, config=vector_db_config, chroma_factory=mock_chroma_factory
-        )
-        manager._embed_with_ollama = AsyncMock(return_value=[0.3] * 384)
-
-        await manager._ensure_initialized()
-
-        entity_id = "sensor.humidity"
-        text = "Entity: Humidity | Current state: 55"
-
-        # Index the entity to populate cache
-        import hashlib
-
-        cache_key = hashlib.md5(text.encode()).hexdigest()
-        manager._embedding_cache[cache_key] = [0.3] * 384
-        manager._entity_cache_keys[entity_id] = cache_key
-
-        # Remove entity
-        await manager.async_remove_entity(entity_id)
-
-        # Cache entries should be cleaned up
-        assert cache_key not in manager._embedding_cache
-        assert entity_id not in manager._entity_cache_keys
-
-
 @pytest.mark.asyncio
-async def test_index_entity_state_change_evicts_stale_cache(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
-):
-    """Test full flow: async_index_entity evicts stale cache on state change.
-
-    Simulates a temperature sensor changing from 72.1 → 72.2 and verifies:
-    - The old embedding cache entry is evicted (not left to linger)
-    - Only one cache entry exists per entity at any time
-    - The embedding provider is called again (cache miss for new text)
-    - ChromaDB upsert is called with the new data
-    """
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
-
-        call_count = 0
-
-        async def _mock_embed(text):
-            nonlocal call_count
-            call_count += 1
-            # Return different embeddings for different text
-            return [float(call_count) * 0.1] * 384
-
-        manager._embed_with_ollama = AsyncMock(side_effect=_mock_embed)
-
-        await manager._ensure_initialized()
-
-        # Set up exposure
-        with patch(
-            "custom_components.pepa_sensory_arm.vector_db_manager.async_should_expose",
-            mock_async_should_expose,
-        ):
-            # First index: sensor.temperature at state "22"
-            await manager.async_index_entity("sensor.temperature")
-            assert call_count == 1
-            assert len(manager._embedding_cache) == 1
-            assert "sensor.temperature" in manager._entity_cache_keys
-
-            # Now change state to "23"
-            updated_state = State("sensor.temperature", "23", {"friendly_name": "Temperature"})
-            mock_hass.states.get = MagicMock(
-                side_effect=lambda eid: (updated_state if eid == "sensor.temperature" else None)
-            )
-
-            # Re-index after state change
-            await manager.async_index_entity("sensor.temperature")
-            assert call_count == 2  # New embedding was generated (cache miss)
-            # Critical: still only 1 cache entry, not 2
-            assert len(manager._embedding_cache) == 1
-            assert "sensor.temperature" in manager._entity_cache_keys
-
-            # Index a different entity to verify independent cache entries
-            mock_hass.states.get = MagicMock(
-                side_effect=lambda eid: {
-                    "sensor.temperature": updated_state,
-                    "light.living_room": State(
-                        "light.living_room",
-                        "on",
-                        {"friendly_name": "Living Room Light"},
-                    ),
-                }.get(eid)
-            )
-            await manager.async_index_entity("light.living_room")
-            assert call_count == 3
-            # Now 2 entries: one per entity
-            assert len(manager._embedding_cache) == 2
-            assert len(manager._entity_cache_keys) == 2
-
-
 @pytest.mark.asyncio
-async def test_shutdown_clears_entity_cache_keys(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that async_shutdown clears the entity cache key mapping."""
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
-
-        # Simulate populated cache state
-        manager._embedding_cache["abc"] = [0.1] * 384
-        manager._entity_cache_keys["sensor.temp"] = "abc"
-
-        await manager.async_shutdown()
-
-        assert len(manager._embedding_cache) == 0
-        assert len(manager._entity_cache_keys) == 0
-
-
 @pytest.mark.asyncio
-async def test_embed_with_openai_success(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test successful embedding generation with OpenAI."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
-    config[CONF_OPENAI_API_KEY] = "test-api-key"
-
-    with (
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
-    ):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "test entity"
-        expected_embedding = [0.3] * 1536
-
-        # Mock OpenAI response
-        mock_response = MagicMock()
-        mock_response.data = [MagicMock()]
-        mock_response.data[0].embedding = expected_embedding
-
-        # Mock the OpenAI client
-        with patch("custom_components.pepa_sensory_arm.vector_db_manager.openai") as mock_openai:
-            mock_client = AsyncMock()
-            mock_client.embeddings.create = AsyncMock(return_value=mock_response)
-            mock_openai.AsyncOpenAI.return_value = mock_client
-
-            # Mock retry_async to await and call the function
-            async def mock_retry(func, **kwargs):
-                return await func()
-
-            with patch(
-                "custom_components.pepa_sensory_arm.vector_db_manager.retry_async",
-                side_effect=mock_retry,
-            ):
-                result = await manager._embed_with_openai(test_text)
-
-                assert result == expected_embedding
-                mock_client.embeddings.create.assert_called_once()
-
-
 @pytest.mark.asyncio
-async def test_embed_with_openai_api_error(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that OpenAI API errors are properly handled."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
-    config[CONF_OPENAI_API_KEY] = "test-api-key"
-
-    with (
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
-    ):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "test entity"
-
-        # Mock OpenAI to raise an error
-        with patch("custom_components.pepa_sensory_arm.vector_db_manager.openai") as mock_openai:
-            mock_client = AsyncMock()
-            mock_error = Exception("API Error")
-            mock_client.embeddings.create = AsyncMock(side_effect=mock_error)
-            mock_openai.AsyncOpenAI.return_value = mock_client
-
-            # Mock retry_async to await and call the function
-            async def mock_retry(func, **kwargs):
-                return await func()
-
-            with patch(
-                "custom_components.pepa_sensory_arm.vector_db_manager.retry_async",
-                side_effect=mock_retry,
-            ):
-                with pytest.raises(Exception, match="API Error"):
-                    await manager._embed_with_openai(test_text)
-
-
 @pytest.mark.asyncio
-async def test_embed_with_openai_missing_api_key(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that missing OpenAI API key raises error."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
-    # Don't set API key
-
-    with (
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
-    ):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        with pytest.raises(ContextInjectionError, match="OpenAI API key not configured"):
-            await manager._embed_with_openai("test text")
-
-
 @pytest.mark.asyncio
-async def test_embed_with_openai_library_not_available(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that missing OpenAI library raises error."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
-    config[CONF_OPENAI_API_KEY] = "test-api-key"
-
-    with (
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
-        patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", False),
-    ):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        with pytest.raises(ContextInjectionError, match="OpenAI library not installed"):
-            await manager._embed_with_openai("test text")
-
-
 @pytest.mark.asyncio
-async def test_embed_with_ollama_success(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test successful embedding generation with Ollama."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-    config[CONF_VECTOR_DB_EMBEDDING_BASE_URL] = "http://localhost:11434"
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "test entity"
-        expected_embedding = [0.4] * 768
-
-        # Mock aiohttp response
-        mock_response = MagicMock()
-        mock_response.status = 200
-        mock_response.json = AsyncMock(return_value={"embedding": expected_embedding})
-        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_response.__aexit__ = AsyncMock(return_value=None)
-
-        mock_session = MagicMock()
-        mock_session.post = MagicMock(return_value=mock_response)
-        mock_session.closed = False
-
-        # Mock retry_async to await and call the function
-        async def mock_retry(func, **kwargs):
-            return await func()
-
-        # Set the shared session directly instead of patching ClientSession
-        manager._aiohttp_session = mock_session
-
-        with patch(
-            "custom_components.pepa_sensory_arm.vector_db_manager.retry_async",
-            side_effect=mock_retry,
-        ):
-            result = await manager._embed_with_ollama(test_text)
-
-            assert result == expected_embedding
-
-
 @pytest.mark.asyncio
-async def test_embed_with_ollama_timeout(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that Ollama timeout errors are properly handled."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "test entity"
-
-        # Mock aiohttp to raise ClientError (which includes timeout errors)
-        mock_response = MagicMock()
-        mock_response.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("Connection timeout"))
-        mock_response.__aexit__ = AsyncMock(return_value=None)
-
-        mock_session = MagicMock()
-        mock_session.post = MagicMock(return_value=mock_response)
-        mock_session.closed = False
-
-        # Mock retry_async to await and call the function
-        async def mock_retry(func, **kwargs):
-            return await func()
-
-        # Set the shared session directly
-        manager._aiohttp_session = mock_session
-
-        with patch(
-            "custom_components.pepa_sensory_arm.vector_db_manager.retry_async",
-            side_effect=mock_retry,
-        ):
-            with pytest.raises(ContextInjectionError, match="Failed to connect to Ollama"):
-                await manager._embed_with_ollama(test_text)
-
-
 @pytest.mark.asyncio
-async def test_embed_with_ollama_api_error(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that Ollama API errors are properly handled."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        test_text = "test entity"
-
-        # Mock aiohttp response with error
-        mock_response = MagicMock()
-        mock_response.status = 500
-        mock_response.text = AsyncMock(return_value="Internal Server Error")
-        mock_response.__aenter__ = AsyncMock(return_value=mock_response)
-        mock_response.__aexit__ = AsyncMock(return_value=None)
-
-        mock_session = MagicMock()
-        mock_session.post = MagicMock(return_value=mock_response)
-        mock_session.closed = False
-
-        # Mock retry_async to await and call the function
-        async def mock_retry(func, **kwargs):
-            return await func()
-
-        # Set the shared session directly
-        manager._aiohttp_session = mock_session
-
-        with patch(
-            "custom_components.pepa_sensory_arm.vector_db_manager.retry_async",
-            side_effect=mock_retry,
-        ):
-            with pytest.raises(ContextInjectionError, match="Ollama API error 500"):
-                await manager._embed_with_ollama(test_text)
-
-
 @pytest.mark.asyncio
-async def test_embed_text_unknown_provider(
-    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
-):
-    """Test that unknown embedding provider raises error."""
-    config = vector_db_config.copy()
-    config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = "unknown_provider"
-
-    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
-
-        with pytest.raises(ContextInjectionError, match="Unknown embedding provider"):
-            await manager._embed_text("test text")
-
-
-# ============================================================================
-# ENTITY OPERATIONS TESTS
-# ============================================================================
-
-
 @pytest.mark.asyncio
 async def test_async_remove_entity_success(
     mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
@@ -1564,3 +1040,100 @@ def test_create_entity_text_includes_aliases(
             text = manager._create_entity_text(state)
 
         assert "Aliases: lounge light, main light" in text
+
+
+# ---- Delegation to the shared embedder ----------------------------------
+#
+# Embedding generation and its cache moved to Embedder (see test_embedder.py).
+# What remains VectorDBManager's business is delegating correctly and not
+# trampling the other manager's state on the way out.
+
+
+@pytest.mark.asyncio
+async def test_embed_text_shim_delegates_to_factory(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
+    """The deprecated _embed_text shim forwards to the factory, entity_id included."""
+    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
+        mock_chroma_factory.embed_text = AsyncMock(return_value=[0.9] * 384)
+
+        result = await manager._embed_text("some text", entity_id="sensor.temperature")
+
+    assert result == [0.9] * 384
+    mock_chroma_factory.embed_text.assert_awaited_once_with(
+        "some text", entity_id="sensor.temperature"
+    )
+
+
+@pytest.mark.asyncio
+async def test_remove_entity_evicts_via_factory(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
+    """Removing an entity evicts its embedding through the factory."""
+    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
+        manager._embed_text = AsyncMock(return_value=[0.3] * 384)
+        await manager._ensure_initialized()
+
+        await manager.async_remove_entity("sensor.humidity")
+
+    mock_chroma_factory.evict_entity.assert_called_once_with("sensor.humidity")
+
+
+@pytest.mark.asyncio
+async def test_shutdown_clears_only_entity_namespace(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
+    """Shutdown clears this manager's namespace and nothing else.
+
+    The embedder is shared with MemoryManager. Clearing everything -- or closing
+    the embedder's HTTP clients, which this used to do -- would break the other
+    manager. That is the cache-level shape of the borrowed-client bug.
+    """
+    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
+        manager._embed_text = AsyncMock(return_value=[0.1] * 384)
+        await manager._ensure_initialized()
+
+        await manager.async_shutdown()
+
+    mock_chroma_factory.clear_cache.assert_called_once_with(CACHE_NS_ENTITY)
+
+
+@pytest.mark.asyncio
+async def test_shutdown_does_not_close_shared_embedder(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
+    """Shutdown never closes the shared embedder -- only the factory may."""
+    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
+        manager._embed_text = AsyncMock(return_value=[0.1] * 384)
+        await manager._ensure_initialized()
+
+        await manager.async_shutdown()
+
+    mock_chroma_factory.async_shutdown.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_async_shutdown_cleans_up_listeners(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
+    """Shutdown unregisters listeners and clears them."""
+    with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
+        manager._embed_text = AsyncMock(return_value=[0.1] * 384)
+        await manager._ensure_initialized()
+
+        state_listener_mock = MagicMock()
+        maintenance_listener_mock = MagicMock()
+        manager._state_listener = state_listener_mock
+        manager._maintenance_listener = maintenance_listener_mock
+
+        await manager.async_shutdown()
+
+    state_listener_mock.assert_called_once()
+    maintenance_listener_mock.assert_called_once()
+    assert manager._state_listener is None
+    assert manager._maintenance_listener is None

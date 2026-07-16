@@ -56,7 +56,7 @@ Integration Points:
     - ContextManager: Provides entity and memory context for conversations
     - ConversationHistoryManager: Manages multi-turn conversation history
     - ToolHandler: Executes tools (Home Assistant actions, external services)
-    - MemoryManager: Stores and retrieves long-term memories
+    - MemoryInterface: Stores and retrieves long-term memories (backend-agnostic)
     - ConversationSessionManager: Manages persistent voice conversation sessions
 
 Tool Calling Flow:
@@ -161,6 +161,7 @@ from ..exceptions import (
     TokenLimitExceeded,
 )
 from ..helpers import strip_thinking_blocks
+from ..memory_interface import MemoryInterface
 from ..tool_handler import ToolHandler
 from ..tools import HomeAssistantControlTool, HomeAssistantQueryTool
 from ..tools.custom import CustomToolHandler
@@ -227,7 +228,7 @@ class PepaSensoryArm(
         self._session: aiohttp.ClientSession | None = None
 
         # Memory manager reference (will be populated from hass.data if available)
-        self._memory_manager = None
+        self._memory: MemoryInterface | None = None
 
         _LOGGER.info("Pepa Sensory Arm initialized with model %s", config.get(CONF_LLM_MODEL))
 
@@ -246,16 +247,21 @@ class PepaSensoryArm(
         return MATCH_ALL
 
     @property
-    def memory_manager(self) -> Any:
-        """Get memory manager from hass.data if available."""
-        if self._memory_manager is None:
-            # Try to get memory manager from hass.data
+    def memory(self) -> MemoryInterface | None:
+        """Get the memory backend from hass.data if available.
+
+        Typed against the contract rather than Any. This property is how memory
+        reaches the tools and the context provider at runtime, and it used to
+        fetch the concrete MemoryManager out of hass.data as `Any` -- which is
+        why no import-level check ever saw it.
+        """
+        if self._memory is None:
             domain_data = self.hass.data.get(DOMAIN, {})
             for entry_data in domain_data.values():
-                if isinstance(entry_data, dict) and "memory_manager" in entry_data:
-                    self._memory_manager = entry_data["memory_manager"]
+                if isinstance(entry_data, dict) and "memory" in entry_data:
+                    self._memory = entry_data["memory"]
                     break
-        return self._memory_manager
+        return self._memory
 
     def _ensure_tools_registered(self) -> None:
         """Ensure tools are registered (lazy registration).
@@ -270,8 +276,8 @@ class PepaSensoryArm(
         self._tools_registered = True
 
         # Set memory provider in context manager if memory manager is available
-        if self.memory_manager is not None:
-            self.context_manager.set_memory_provider(self.memory_manager)
+        if self.memory is not None:
+            self.context_manager.set_memory_provider(self.memory)
             _LOGGER.debug("Memory context provider enabled")
 
     async def async_process(
@@ -476,17 +482,17 @@ class PepaSensoryArm(
             self._register_custom_tools(custom_tools_config)
 
         # Register memory tools if memory manager is available
-        if self.memory_manager is not None:
+        if self.memory is not None:
             from ..tools.memory_tools import RecallMemoryTool, StoreMemoryTool
 
             store_memory = StoreMemoryTool(
                 self.hass,
-                self.memory_manager,
+                self.memory,
                 conversation_id=None,  # Will be set per-conversation
             )
             self.tool_handler.register_tool(store_memory)
 
-            recall_memory = RecallMemoryTool(self.hass, self.memory_manager)
+            recall_memory = RecallMemoryTool(self.hass, self.memory)
             self.tool_handler.register_tool(recall_memory)
 
             _LOGGER.info("Memory tools registered")

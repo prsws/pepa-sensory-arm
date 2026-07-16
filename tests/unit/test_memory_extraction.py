@@ -33,10 +33,10 @@ def mock_hass():
 
 
 @pytest.fixture
-def mock_memory_manager():
-    """Create a mock MemoryManager instance."""
+def mock_memory():
+    """Create a mock memory backend, typed by the contract's surface."""
     mock = MagicMock()
-    mock.add_memory = AsyncMock(return_value="mem_123")
+    mock.write = AsyncMock(return_value="mem_123")
     mock._is_transient_state = MagicMock(return_value=False)
     return mock
 
@@ -221,9 +221,9 @@ class TestCallPrimaryLLMForExtraction:
 class TestParseAndStoreMemories:
     """Test _parse_and_store_memories method."""
 
-    async def test_parse_valid_json(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_valid_json(self, pepa_sensory_arm, mock_memory):
         """Test parsing valid JSON response."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = json.dumps(
             [
@@ -243,11 +243,11 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
-    async def test_parse_json_in_markdown(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_json_in_markdown(self, pepa_sensory_arm, mock_memory):
         """Test parsing JSON wrapped in markdown code block."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         fact_content = (
             "The living room has three ceiling lights"
@@ -268,33 +268,33 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
-    async def test_parse_empty_array(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_empty_array(self, pepa_sensory_arm, mock_memory):
         """Test parsing empty array (no memories)."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = "[]"
 
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 0
-        mock_memory_manager.add_memory.assert_not_called()
+        mock_memory.write.assert_not_called()
 
-    async def test_parse_invalid_json(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_invalid_json(self, pepa_sensory_arm, mock_memory):
         """Test handling of invalid JSON."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = "not valid json"
 
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 0
-        mock_memory_manager.add_memory.assert_not_called()
+        mock_memory.write.assert_not_called()
 
-    async def test_parse_non_array(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_non_array(self, pepa_sensory_arm, mock_memory):
         """Test handling of non-array JSON."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = '{"type": "fact"}'
 
@@ -302,9 +302,9 @@ class TestParseAndStoreMemories:
 
         assert count == 0
 
-    async def test_parse_multiple_memories(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_multiple_memories(self, pepa_sensory_arm, mock_memory):
         """Test parsing multiple memories."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = json.dumps(
             [
@@ -341,14 +341,14 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 3
-        assert mock_memory_manager.add_memory.call_count == 3
+        assert mock_memory.write.call_count == 3
 
-    async def test_parse_handles_storage_failure(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_handles_storage_failure(self, pepa_sensory_arm, mock_memory):
         """Test that storage failures don't stop other memories from being stored."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         # First call fails, second succeeds
-        mock_memory_manager.add_memory.side_effect = [
+        mock_memory.write.side_effect = [
             Exception("Storage error"),
             "mem_2",
         ]
@@ -379,11 +379,11 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1  # Only one succeeded
-        assert mock_memory_manager.add_memory.call_count == 2
+        assert mock_memory.write.call_count == 2
 
-    async def test_parse_validates_memory_content(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_parse_validates_memory_content(self, pepa_sensory_arm, mock_memory):
         """Test that memories without content are skipped."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         extraction_result = json.dumps(
             [
@@ -402,17 +402,15 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1  # Only the valid one
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
-    async def test_parse_strips_thinking_blocks_before_json(
-        self, pepa_sensory_arm, mock_memory_manager
-    ):
+    async def test_parse_strips_thinking_blocks_before_json(self, pepa_sensory_arm, mock_memory):
         """Test that thinking blocks from reasoning models are stripped before parsing.
 
         Reasoning models (Qwen3, DeepSeek R1) may include <think>...</think> blocks
         in their output which would break JSON parsing.
         """
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         # Simulate reasoning model output with thinking block before JSON
         pref_content = (
@@ -441,13 +439,11 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
-    async def test_parse_strips_thinking_blocks_with_markdown(
-        self, pepa_sensory_arm, mock_memory_manager
-    ):
+    async def test_parse_strips_thinking_blocks_with_markdown(self, pepa_sensory_arm, mock_memory):
         """Test that thinking blocks are stripped when JSON is in markdown block."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         fact_content = (
             "The living room has three ceiling lights"
@@ -474,13 +470,13 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
     async def test_parse_handles_thinking_block_with_json_inside(
-        self, pepa_sensory_arm, mock_memory_manager
+        self, pepa_sensory_arm, mock_memory
     ):
         """Test handling when thinking block contains JSON-like content."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         doorbell_content = (
             "The smart doorbell is connected to the"
@@ -509,14 +505,12 @@ class TestParseAndStoreMemories:
 
         assert count == 1
         # Verify the correct memory was stored (not the one inside think block)
-        call_args = mock_memory_manager.add_memory.call_args
+        call_args = mock_memory.write.call_args
         assert "doorbell" in call_args.kwargs["content"]
 
-    async def test_parse_handles_multiple_thinking_blocks(
-        self, pepa_sensory_arm, mock_memory_manager
-    ):
+    async def test_parse_handles_multiple_thinking_blocks(self, pepa_sensory_arm, mock_memory):
         """Test handling multiple thinking blocks in output."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
 
         lighting_content = (
             "User prefers warm white lighting in the"
@@ -540,7 +534,7 @@ class TestParseAndStoreMemories:
         count = await pepa_sensory_arm._parse_and_store_memories(extraction_result, "conv_123")
 
         assert count == 1
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
 
 class TestExtractAndStoreMemories:
@@ -568,9 +562,9 @@ class TestExtractAndStoreMemories:
 
             mock_build.assert_not_called()
 
-    async def test_extraction_with_local_llm(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_extraction_with_local_llm(self, pepa_sensory_arm, mock_memory):
         """Test extraction using local LLM."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "local"
 
         extraction_result = json.dumps(
@@ -597,11 +591,11 @@ class TestExtractAndStoreMemories:
             )
 
             # Verify memory was stored
-            mock_memory_manager.add_memory.assert_called_once()
+            mock_memory.write.assert_called_once()
 
-    async def test_extraction_with_external_llm(self, pepa_sensory_arm, mock_memory_manager):
+    async def test_extraction_with_external_llm(self, pepa_sensory_arm, mock_memory):
         """Test extraction using external LLM."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "external"
         pepa_sensory_arm.config[CONF_EXTERNAL_LLM_ENABLED] = True
 
@@ -635,13 +629,13 @@ class TestExtractAndStoreMemories:
         assert isinstance(call_args[1]["parameters"]["prompt"], str)
 
         # Verify memory was stored
-        mock_memory_manager.add_memory.assert_called_once()
+        mock_memory.write.assert_called_once()
 
     async def test_extraction_skipped_when_external_llm_not_enabled(
-        self, pepa_sensory_arm, mock_memory_manager
+        self, pepa_sensory_arm, mock_memory
     ):
         """Test extraction is skipped when external LLM not enabled."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "external"
         pepa_sensory_arm.config[CONF_EXTERNAL_LLM_ENABLED] = False
 
@@ -653,10 +647,10 @@ class TestExtractAndStoreMemories:
             mock_parse.assert_not_called()
 
     async def test_extraction_fires_event_on_success(
-        self, pepa_sensory_arm, mock_memory_manager, mock_hass
+        self, pepa_sensory_arm, mock_memory, mock_hass
     ):
         """Test that event is fired when memories are extracted."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "local"
 
         extraction_result = json.dumps(
@@ -687,11 +681,9 @@ class TestExtractAndStoreMemories:
             call_args = mock_hass.bus.async_fire.call_args
             assert "pepa_sensory_arm.memory.extracted" in call_args[0]
 
-    async def test_extraction_handles_llm_failure_gracefully(
-        self, pepa_sensory_arm, mock_memory_manager
-    ):
+    async def test_extraction_handles_llm_failure_gracefully(self, pepa_sensory_arm, mock_memory):
         """Test that LLM failure doesn't crash extraction."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "local"
 
         with patch.object(
@@ -704,11 +696,9 @@ class TestExtractAndStoreMemories:
                 "conv_123", "user msg", "assistant msg", []
             )
 
-    async def test_extraction_handles_unexpected_exception(
-        self, pepa_sensory_arm, mock_memory_manager
-    ):
+    async def test_extraction_handles_unexpected_exception(self, pepa_sensory_arm, mock_memory):
         """Test that unexpected exceptions are handled gracefully."""
-        pepa_sensory_arm._memory_manager = mock_memory_manager
+        pepa_sensory_arm._memory = mock_memory
         pepa_sensory_arm.config[CONF_MEMORY_EXTRACTION_LLM] = "local"
 
         with patch.object(

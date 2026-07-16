@@ -22,10 +22,11 @@ Memory-VM constraint:
     implemented but default-off pending the P6 in-VM benchmark; see
     ``DEFAULT_CHROMA_PLACEMENT`` in const.py for why that gate exists.
 
-Scope note (P2 commit 2a):
-    ``embed_text()`` and the embedding cache arrive in 2b, along with the
-    ``Embedder`` this factory will hold. Until then this factory owns clients,
-    availability, and the health check only.
+Embedding:
+    The factory holds an ``Embedder`` and exposes it, so that both managers embed
+    through one object with one cache. The embedding stack itself lives in
+    embedder.py -- generation, providers, and HTTP client lifecycles are not the
+    factory's business, they are just reached through it.
 """
 
 from __future__ import annotations
@@ -61,6 +62,7 @@ from .const import (
     DEFAULT_VECTOR_DB_PORT,
     DOMAIN,
 )
+from .embedder import CACHE_NS_ENTITY, CacheNamespace, Embedder
 from .exceptions import ContextInjectionError
 from .helpers import check_chromadb_health, retry_async
 
@@ -102,6 +104,7 @@ class ChromaClientFactory:
         self.port: int = config.get(CONF_VECTOR_DB_PORT, DEFAULT_VECTOR_DB_PORT)
         self.persist_dir: str = config.get(CONF_CHROMA_PERSIST_DIR, DEFAULT_CHROMA_PERSIST_DIR)
 
+        self._embedder = Embedder(hass, config)
         self._client: ClientAPI | None = None
 
         # Bounded-staleness availability. Starts False: nothing has been reached
@@ -115,6 +118,45 @@ class ChromaClientFactory:
     def placement(self) -> str:
         """The active placement. May differ from configuration after fallback."""
         return self._placement
+
+    @property
+    def embedder(self) -> Embedder:
+        """The shared embedder. Exposed for cache maintenance by its owner."""
+        return self._embedder
+
+    async def embed_text(
+        self,
+        text: str,
+        entity_id: str | None = None,
+        namespace: CacheNamespace = CACHE_NS_ENTITY,
+    ) -> list[float]:
+        """Embed text through the shared embedder.
+
+        The single embedding surface for both managers -- this is what ends
+        MemoryManager reaching into VectorDBManager._embed_text.
+
+        Args:
+            text: Text to embed.
+            entity_id: Enables per-entity cache eviction (entity namespace only).
+            namespace: Which cache namespace this call belongs to.
+
+        Returns:
+            Embedding vector.
+        """
+        return await self._embedder.embed_text(text, entity_id=entity_id, namespace=namespace)
+
+    def evict_entity(self, entity_id: str) -> None:
+        """Drop an entity's cached embedding when it leaves the index."""
+        self._embedder.evict_entity(entity_id)
+
+    def clear_cache(self, namespace: CacheNamespace | None = None) -> None:
+        """Clear an embedding cache namespace.
+
+        Callers clear only their own namespace. The factory is shared between the
+        managers, so clearing everything would evict the other one's entries --
+        the cache-level shape of the same bug the factory exists to kill.
+        """
+        self._embedder.clear_cache(namespace)
 
     @property
     def available(self) -> bool:
@@ -352,15 +394,18 @@ class ChromaClientFactory:
         return result
 
     async def async_shutdown(self) -> None:
-        """Stop the probe and release the client.
+        """Stop the probe, close the embedder, and release the client.
 
-        Owned here rather than by either manager: the factory is shared per config
-        entry, so a manager closing it would tear the client out from under the
-        other one. Called from __init__.py's unload, after both managers stop.
+        Owned here rather than by either manager: the factory and its embedder are
+        shared per config entry, so a manager closing either would tear it out
+        from under the other one. Called from __init__.py's unload, after both
+        managers stop.
         """
         if self._probe_listener is not None:
             self._probe_listener()
             self._probe_listener = None
+
+        await self._embedder.async_shutdown()
 
         self._client = None
         self._available = False

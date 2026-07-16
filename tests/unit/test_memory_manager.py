@@ -36,42 +36,6 @@ from custom_components.pepa_sensory_arm.memory_manager import (
 
 
 @pytest.fixture
-def mock_store():
-    """Create a mock Store instance."""
-    with patch("custom_components.pepa_sensory_arm.memory_manager.Store") as mock:
-        store = MagicMock()
-        store.async_load = AsyncMock(return_value=None)
-        store.async_save = AsyncMock()
-        mock.return_value = store
-        yield store
-
-
-@pytest.fixture
-def mock_vector_db_manager():
-    """Create a mock VectorDBManager instance."""
-    mock = MagicMock()
-    mock._client = MagicMock()
-    mock._embed_text = AsyncMock(return_value=[0.1] * 384)  # Mock embedding vector
-
-    # Mock collection
-    collection = MagicMock()
-    collection.query = MagicMock(
-        return_value={
-            "ids": [[]],
-            "distances": [[]],
-            "documents": [[]],
-            "metadatas": [[]],
-        }
-    )
-    collection.upsert = MagicMock()
-    collection.delete = MagicMock()
-
-    mock._client.get_or_create_collection = MagicMock(return_value=collection)
-
-    return mock
-
-
-@pytest.fixture
 def memory_config():
     """Create a test memory configuration."""
     return {
@@ -84,12 +48,12 @@ def memory_config():
 
 
 @pytest.fixture
-async def memory_manager(mock_hass, mock_store, mock_vector_db_manager, memory_config):
+async def memory_manager(mock_hass, mock_store, mock_chroma_factory, memory_config):
     """Create a MemoryManager instance for testing."""
     with patch("custom_components.pepa_sensory_arm.memory_manager.CHROMADB_AVAILABLE", True):
         manager = MemoryManager(
             hass=mock_hass,
-            vector_db_manager=mock_vector_db_manager,
+            chroma_factory=mock_chroma_factory,
             config=memory_config,
         )
         await manager.async_initialize()
@@ -100,12 +64,12 @@ async def memory_manager(mock_hass, mock_store, mock_vector_db_manager, memory_c
 class TestMemoryManagerInitialization:
     """Test MemoryManager initialization."""
 
-    async def test_init_with_config(self, mock_hass, mock_vector_db_manager, memory_config):
+    async def test_init_with_config(self, mock_hass, mock_chroma_factory, memory_config):
         """Test initialization with custom config."""
         with patch("custom_components.pepa_sensory_arm.memory_manager.Store"):
             manager = MemoryManager(
                 hass=mock_hass,
-                vector_db_manager=mock_vector_db_manager,
+                chroma_factory=mock_chroma_factory,
                 config=memory_config,
             )
 
@@ -116,7 +80,7 @@ class TestMemoryManagerInitialization:
             assert manager.dedup_threshold == 0.95
 
     async def test_async_initialize_with_existing_memories(
-        self, mock_hass, mock_vector_db_manager, memory_config
+        self, mock_hass, mock_chroma_factory, memory_config
     ):
         """Test initialization loads existing memories from store."""
         existing_memories = {
@@ -139,7 +103,7 @@ class TestMemoryManagerInitialization:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -149,7 +113,7 @@ class TestMemoryManagerInitialization:
                 assert "mem1" in manager._memories
 
     async def test_async_initialize_chromadb_unavailable(
-        self, mock_hass, mock_vector_db_manager, memory_config
+        self, mock_hass, mock_chroma_factory, memory_config
     ):
         """Test initialization works without ChromaDB."""
         with patch("custom_components.pepa_sensory_arm.memory_manager.Store") as mock_store_cls:
@@ -163,7 +127,7 @@ class TestMemoryManagerInitialization:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -763,7 +727,7 @@ class TestStoragePersistence:
         assert saved_data["memories"][memory_id]["content"] == "Test memory"
         assert saved_data["memories"][memory_id]["type"] == MEMORY_TYPE_FACT
 
-    async def test_load_from_store(self, mock_hass, mock_vector_db_manager, memory_config):
+    async def test_load_from_store(self, mock_hass, mock_chroma_factory, memory_config):
         """Test loading memories from store on initialization."""
         existing_data = {
             "version": 1,
@@ -791,7 +755,7 @@ class TestStoragePersistence:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -823,12 +787,12 @@ class TestDualStorage:
         assert memory_id in call_args.kwargs.get("ids", [])
 
     async def test_chromadb_failure_graceful_degradation(
-        self, mock_hass, mock_vector_db_manager, memory_config
+        self, mock_hass, mock_chroma_factory, memory_config
     ):
         """Test graceful degradation when ChromaDB fails."""
-        # Mock ChromaDB to raise an error
-        mock_vector_db_manager._client.get_or_create_collection.side_effect = Exception(
-            "ChromaDB error"
+        # Fail at the collection call the factory's client actually serves.
+        mock_chroma_factory.get_client.return_value.get_or_create_collection.side_effect = (
+            Exception("ChromaDB error")
         )
 
         with patch("custom_components.pepa_sensory_arm.memory_manager.Store") as mock_store_cls:
@@ -842,7 +806,7 @@ class TestDualStorage:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -864,7 +828,7 @@ class TestTransientMemoryCleanup:
     """Test transient memory cleanup functionality."""
 
     async def test_cleanup_transient_memories_removes_matching(
-        self, mock_hass, mock_vector_db_manager, memory_config
+        self, mock_hass, mock_chroma_factory, memory_config
     ):
         """Test that transient memories are removed during cleanup."""
         # Enable quality validation
@@ -912,7 +876,7 @@ class TestTransientMemoryCleanup:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -928,7 +892,7 @@ class TestTransientMemoryCleanup:
                 await manager.async_shutdown()
 
     async def test_cleanup_transient_memories_preserves_valid(
-        self, mock_hass, mock_vector_db_manager, memory_config
+        self, mock_hass, mock_chroma_factory, memory_config
     ):
         """Test that valid memories are preserved during cleanup."""
         memory_config[CONF_MEMORY_QUALITY_VALIDATION_ENABLED] = True
@@ -964,7 +928,7 @@ class TestTransientMemoryCleanup:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -977,9 +941,7 @@ class TestTransientMemoryCleanup:
 
                 await manager.async_shutdown()
 
-    async def test_quality_validation_disabled(
-        self, mock_hass, mock_vector_db_manager, memory_config
-    ):
+    async def test_quality_validation_disabled(self, mock_hass, mock_chroma_factory, memory_config):
         """Test that quality validation is skipped when disabled."""
         memory_config[CONF_MEMORY_QUALITY_VALIDATION_ENABLED] = False
 
@@ -1006,7 +968,7 @@ class TestTransientMemoryCleanup:
 
                 manager = MemoryManager(
                     hass=mock_hass,
-                    vector_db_manager=mock_vector_db_manager,
+                    chroma_factory=mock_chroma_factory,
                     config=memory_config,
                 )
 
@@ -1025,7 +987,7 @@ class TestTransientMemoryCleanup:
 
         assert count == 0
 
-    async def test_quality_validation_config_defaults(self, mock_hass, mock_vector_db_manager):
+    async def test_quality_validation_config_defaults(self, mock_hass, mock_chroma_factory):
         """Test quality validation config defaults are applied."""
         config = {
             CONF_MEMORY_MAX_MEMORIES: 100,
@@ -1034,7 +996,7 @@ class TestTransientMemoryCleanup:
         with patch("custom_components.pepa_sensory_arm.memory_manager.Store"):
             manager = MemoryManager(
                 hass=mock_hass,
-                vector_db_manager=mock_vector_db_manager,
+                chroma_factory=mock_chroma_factory,
                 config=config,
             )
 
