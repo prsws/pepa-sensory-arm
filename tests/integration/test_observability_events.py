@@ -25,6 +25,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_LLM_MAX_TOKENS,
     CONF_LLM_MODEL,
     CONF_LLM_TEMPERATURE,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_STREAMING_ENABLED,
     CONF_TOOLS_MAX_CALLS_PER_TURN,
     CONTEXT_MODE_DIRECT,
@@ -120,6 +121,7 @@ async def test_conversation_started_event(
         CONF_EMIT_EVENTS: True,  # Enable events
         CONF_DEBUG_LOGGING: False,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
     }
 
     with patch(
@@ -661,6 +663,7 @@ async def test_context_injected_event(
         CONF_EMIT_EVENTS: True,
         CONF_DEBUG_LOGGING: False,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
     }
 
     with patch(
@@ -899,6 +902,7 @@ async def test_multiple_events_in_single_conversation(
         CONF_EMIT_EVENTS: True,
         CONF_DEBUG_LOGGING: False,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
     }
 
     with patch(
@@ -1264,6 +1268,7 @@ async def test_event_ordering(
         CONF_EMIT_EVENTS: True,
         CONF_DEBUG_LOGGING: False,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
     }
 
     with patch(

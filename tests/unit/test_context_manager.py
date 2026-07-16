@@ -10,6 +10,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_DIRECT_ENTITIES,
     CONF_PROMPT_INCLUDE_LABELS,
+    CONF_PROMPT_USE_DEFAULT,
     CONTEXT_FORMAT_JSON,
     CONTEXT_MODE_DIRECT,
     CONTEXT_MODE_VECTOR_DB,
@@ -58,8 +59,9 @@ def mock_hass():
 
 @pytest.fixture
 def default_config():
-    """Create default configuration."""
+    """Create a replacement-prompt-mode configuration (entity provider active)."""
     return {
+        CONF_PROMPT_USE_DEFAULT: False,
         "mode": CONTEXT_MODE_DIRECT,
         "format": CONTEXT_FORMAT_JSON,
         "entities": [{"entity_id": "light.living_room", "attributes": ["brightness"]}],
@@ -96,7 +98,7 @@ class TestContextManagerInitialization:
 
     def test_init_with_defaults(self, mock_hass):
         """Test initialization with default values."""
-        manager = ContextManager(mock_hass, {})
+        manager = ContextManager(mock_hass, {CONF_PROMPT_USE_DEFAULT: False})
 
         assert manager._cache_enabled is False
         assert manager._cache_ttl == 60
@@ -120,14 +122,14 @@ class TestContextManagerInitialization:
 
     def test_init_direct_mode(self, mock_hass):
         """Test initialization with direct mode."""
-        config = {"mode": CONTEXT_MODE_DIRECT}
+        config = {CONF_PROMPT_USE_DEFAULT: False, "mode": CONTEXT_MODE_DIRECT}
         manager = ContextManager(mock_hass, config)
 
         assert isinstance(manager._provider, DirectContextProvider)
 
     def test_init_vector_db_mode_fallback(self, mock_hass):
         """Test initialization with vector DB mode falls back to direct when unavailable."""
-        config = {"mode": CONTEXT_MODE_VECTOR_DB}
+        config = {CONF_PROMPT_USE_DEFAULT: False, "mode": CONTEXT_MODE_VECTOR_DB}
         manager = ContextManager(mock_hass, config)
 
         # Should fallback to DirectContextProvider since chromadb is not available in test env
@@ -135,7 +137,7 @@ class TestContextManagerInitialization:
 
     def test_init_vector_db_mode_fallback_on_import_error(self, mock_hass):
         """Test that vector_db mode gracefully falls back to direct mode on import error."""
-        config = {CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB}
+        config = {CONF_PROMPT_USE_DEFAULT: False, CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB}
 
         with patch.object(
             ContextManager,
@@ -148,7 +150,7 @@ class TestContextManagerInitialization:
 
     def test_init_direct_mode_failure_raises(self, mock_hass):
         """Test that direct mode failure still raises ContextInjectionError."""
-        config = {CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT}
+        config = {CONF_PROMPT_USE_DEFAULT: False, CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT}
 
         with patch.object(
             ContextManager,
@@ -160,14 +162,14 @@ class TestContextManagerInitialization:
 
     def test_init_invalid_mode_fallback(self, mock_hass):
         """Test initialization with invalid mode (should fallback to direct)."""
-        config = {"mode": "invalid_mode"}
+        config = {CONF_PROMPT_USE_DEFAULT: False, "mode": "invalid_mode"}
         manager = ContextManager(mock_hass, config)
 
         assert isinstance(manager._provider, DirectContextProvider)
 
     def test_init_provider_failure(self, mock_hass):
         """Test initialization when provider creation fails."""
-        config = {"mode": CONTEXT_MODE_DIRECT}
+        config = {CONF_PROMPT_USE_DEFAULT: False, "mode": CONTEXT_MODE_DIRECT}
 
         with patch.object(
             ContextManager,
@@ -184,6 +186,7 @@ class TestIncludeLabelsConfiguration:
     def test_include_labels_defaults_to_false(self, mock_hass):
         """Test that include_labels defaults to False when not in config."""
         config = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
         }
         manager = ContextManager(mock_hass, config)
@@ -196,6 +199,7 @@ class TestIncludeLabelsConfiguration:
     def test_include_labels_set_to_true(self, mock_hass):
         """Test that include_labels=True is correctly passed to DirectContextProvider."""
         config = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_PROMPT_INCLUDE_LABELS: True,
         }
@@ -208,6 +212,7 @@ class TestIncludeLabelsConfiguration:
     def test_include_labels_set_to_false_explicitly(self, mock_hass):
         """Test that include_labels=False is correctly passed to DirectContextProvider."""
         config = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_PROMPT_INCLUDE_LABELS: False,
         }
@@ -220,6 +225,7 @@ class TestIncludeLabelsConfiguration:
     def test_include_labels_with_entities_and_format(self, mock_hass):
         """Test include_labels is passed along with other provider config."""
         config = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_DIRECT_ENTITIES: [{"entity_id": "light.test", "attributes": ["brightness"]}],
             CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
@@ -238,6 +244,7 @@ class TestIncludeLabelsConfiguration:
         """Test that _create_direct_provider correctly reads and passes include_labels."""
         # Test with include_labels=True
         config_with_labels = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_PROMPT_INCLUDE_LABELS: True,
         }
@@ -247,6 +254,7 @@ class TestIncludeLabelsConfiguration:
 
         # Test with include_labels=False
         config_without_labels = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_PROMPT_INCLUDE_LABELS: False,
         }
@@ -257,6 +265,7 @@ class TestIncludeLabelsConfiguration:
     def test_include_labels_not_affected_by_other_config_keys(self, mock_hass):
         """Test that include_labels is independent of other config keys."""
         config = {
+            CONF_PROMPT_USE_DEFAULT: False,
             CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
             CONF_PROMPT_INCLUDE_LABELS: True,
             "cache_enabled": True,
@@ -325,7 +334,7 @@ class TestGetContext:
         """Test get_context with no provider configured."""
         manager = ContextManager.__new__(ContextManager)
         manager.hass = mock_hass
-        manager.config = {}
+        manager.config = {CONF_PROMPT_USE_DEFAULT: False}
         manager._provider = None
         manager._cache_enabled = False
 
@@ -697,8 +706,8 @@ class TestGetCurrentMode:
         assert mode in [CONTEXT_MODE_DIRECT, CONTEXT_MODE_VECTOR_DB]
 
     def test_get_current_mode_default(self, mock_hass):
-        """Test getting current mode with no mode in config."""
-        manager = ContextManager(mock_hass, {})
+        """Test getting current mode with no mode in config (replacement prompt)."""
+        manager = ContextManager(mock_hass, {CONF_PROMPT_USE_DEFAULT: False})
 
         mode = manager.get_current_mode()
 
@@ -706,6 +715,12 @@ class TestGetCurrentMode:
         assert isinstance(mode, str)
         assert len(mode) > 0
         assert mode in [CONTEXT_MODE_DIRECT, CONTEXT_MODE_VECTOR_DB]
+
+    def test_get_current_mode_default_prompt(self, mock_hass):
+        """Test that default prompt mode reports the 'default' composition mode."""
+        manager = ContextManager(mock_hass, {})
+
+        assert manager.get_current_mode() == "default"
 
 
 class TestGetProviderInfo:
@@ -874,3 +889,208 @@ class TestEdgeCases:
         assert all(len(r) > 0 for r in results)
         # Verify provider was actually called
         assert provider.get_context_called
+
+
+class FailingContextProvider(ContextProvider):
+    """Context provider that always raises."""
+
+    async def get_context(self, user_input: str) -> str:
+        """Raise an error."""
+        raise Exception("Provider failed")
+
+
+@pytest.fixture
+def default_mode_manager(mock_hass):
+    """Create a ContextManager in default prompt mode (composition: memory + retrieval)."""
+    return ContextManager(mock_hass, {})
+
+
+class TestDefaultModeInitialization:
+    """Test provider initialization in default prompt mode."""
+
+    def test_entity_providers_never_instantiated(self, mock_hass):
+        """In default mode neither Direct nor VectorDB providers are created."""
+        with (
+            patch.object(ContextManager, "_create_direct_provider") as mock_direct,
+            patch.object(ContextManager, "_create_vector_db_provider") as mock_vector,
+        ):
+            manager = ContextManager(mock_hass, {CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT})
+            assert manager._provider is None
+            manager_v = ContextManager(mock_hass, {CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB})
+            assert manager_v._provider is None
+
+        mock_direct.assert_not_called()
+        mock_vector.assert_not_called()
+
+    def test_provider_info_reports_default_mode(self, mock_hass):
+        """get_provider_info reports the composition and entity modes."""
+        info = ContextManager(mock_hass, {}).get_provider_info()
+
+        assert info["provider_class"] is None
+        assert info["mode"] == "default"
+        assert info["entity_context_mode"] == DEFAULT_CONTEXT_MODE
+
+
+@pytest.mark.asyncio
+class TestDefaultModeComposition:
+    """Test context composition in default prompt mode (memory + retrieval only)."""
+
+    async def test_entity_provider_never_invoked(self, default_mode_manager, mock_hass):
+        """Even a manually injected entity provider is not consulted in default mode."""
+        entity_provider = MockContextProvider(mock_hass, {}, "ENTITY CONTEXT")
+        default_mode_manager._provider = entity_provider
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+
+        context = await default_mode_manager.get_context("test input")
+
+        assert not entity_provider.get_context_called
+        assert context == "memory part"
+
+    async def test_memory_and_retrieval_merged_in_order(self, default_mode_manager, mock_hass):
+        """Both legs present: memory first, retrieval second, newline-joined."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        default_mode_manager._retrieval_provider = MockContextProvider(
+            mock_hass, {}, "retrieval part"
+        )
+
+        context = await default_mode_manager.get_context("test input")
+
+        assert context == "memory part\nretrieval part"
+
+    async def test_memory_only(self, default_mode_manager, mock_hass):
+        """Retrieval leg absent/empty: memory output returned alone."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+
+        assert await default_mode_manager.get_context("x") == "memory part"
+
+        default_mode_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "")
+        assert await default_mode_manager.get_context("x") == "memory part"
+
+    async def test_retrieval_only(self, default_mode_manager, mock_hass):
+        """Memory leg absent/empty: retrieval output returned alone."""
+        default_mode_manager._retrieval_provider = MockContextProvider(
+            mock_hass, {}, "retrieval part"
+        )
+
+        assert await default_mode_manager.get_context("x") == "retrieval part"
+
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "")
+        assert await default_mode_manager.get_context("x") == "retrieval part"
+
+    async def test_both_empty_returns_empty(self, default_mode_manager, mock_hass):
+        """Both legs empty: empty string, no error."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "")
+        default_mode_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "")
+
+        assert await default_mode_manager.get_context("x") == ""
+
+    async def test_no_providers_returns_empty(self, default_mode_manager):
+        """No memory and no retrieval provider: empty string, no error."""
+        assert await default_mode_manager.get_context("x") == ""
+
+    async def test_memory_failure_returns_retrieval(self, default_mode_manager, mock_hass, caplog):
+        """Memory leg raising: retrieval output returned, warning logged."""
+        default_mode_manager._memory_provider = FailingContextProvider(mock_hass, {})
+        default_mode_manager._retrieval_provider = MockContextProvider(
+            mock_hass, {}, "retrieval part"
+        )
+
+        context = await default_mode_manager.get_context("x")
+
+        assert context == "retrieval part"
+        assert "Failed to get memory context" in caplog.text
+
+    async def test_retrieval_failure_returns_memory(self, default_mode_manager, mock_hass, caplog):
+        """Retrieval leg raising: memory output returned, warning logged."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        default_mode_manager._retrieval_provider = FailingContextProvider(mock_hass, {})
+
+        context = await default_mode_manager.get_context("x")
+
+        assert context == "memory part"
+        assert "Failed to get retrieval context" in caplog.text
+
+    async def test_no_sentinel_strings_in_output(self, default_mode_manager, mock_hass):
+        """Entity-provider sentinels never appear in default-mode output."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "")
+        default_mode_manager._retrieval_provider = FailingContextProvider(mock_hass, {})
+
+        context = await default_mode_manager.get_context("x")
+
+        assert "No relevant context found" not in context
+        assert "[Fallback mode - Vector DB unavailable]" not in context
+        assert context == ""
+
+    async def test_metrics_mode_reports_default(self, default_mode_manager, mock_hass):
+        """get_formatted_context reports composition mode 'default' in metrics."""
+        default_mode_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        metrics = {}
+
+        await default_mode_manager.get_formatted_context("x", "conv_1", metrics)
+
+        assert metrics["context"]["mode"] == "default"
+
+
+@pytest.mark.asyncio
+class TestReplacementModeRetrievalLeg:
+    """Test the retrieval leg appended to the legacy replacement-mode merge."""
+
+    async def test_retrieval_appended_after_memory(self, context_manager, mock_hass):
+        """Entity, memory, retrieval composed in order."""
+        context_manager.set_provider(MockContextProvider(mock_hass, {}, "entity part"))
+        context_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        context_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "retrieval part")
+
+        context = await context_manager.get_context("x")
+
+        assert context == "entity part\nmemory part\nretrieval part"
+
+    async def test_retrieval_appended_without_memory(self, context_manager, mock_hass):
+        """Retrieval leg works with no memory provider."""
+        context_manager.set_provider(MockContextProvider(mock_hass, {}, "entity part"))
+        context_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "retrieval part")
+
+        context = await context_manager.get_context("x")
+
+        assert context == "entity part\nretrieval part"
+
+    async def test_empty_retrieval_leg_skipped(self, context_manager, mock_hass):
+        """Empty retrieval output adds no separator."""
+        context_manager.set_provider(MockContextProvider(mock_hass, {}, "entity part"))
+        context_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        context_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "")
+
+        context = await context_manager.get_context("x")
+
+        assert context == "entity part\nmemory part"
+
+    async def test_retrieval_failure_skipped(self, context_manager, mock_hass, caplog):
+        """A failing retrieval leg is skipped with a warning."""
+        context_manager.set_provider(MockContextProvider(mock_hass, {}, "entity part"))
+        context_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        context_manager._retrieval_provider = FailingContextProvider(mock_hass, {})
+
+        context = await context_manager.get_context("x")
+
+        assert context == "entity part\nmemory part"
+        assert "Failed to get retrieval context" in caplog.text
+
+    async def test_sentinel_replacement_preserved_with_retrieval(self, context_manager, mock_hass):
+        """Sentinel entity context is still replaced by memory; retrieval appended."""
+        context_manager.set_provider(
+            MockContextProvider(mock_hass, {}, "No relevant context found.")
+        )
+        context_manager._memory_provider = MockContextProvider(mock_hass, {}, "memory part")
+        context_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "retrieval part")
+
+        context = await context_manager.get_context("x")
+
+        assert context == "memory part\nretrieval part"
+
+    async def test_entity_failure_still_raises(self, context_manager, mock_hass):
+        """Entity leg failure still raises even with retrieval configured."""
+        context_manager.set_provider(FailingContextProvider(mock_hass, {}))
+        context_manager._retrieval_provider = MockContextProvider(mock_hass, {}, "retrieval part")
+
+        with pytest.raises(ContextInjectionError, match="Failed to retrieve entity context"):
+            await context_manager.get_context("x")
