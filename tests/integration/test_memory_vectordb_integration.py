@@ -78,9 +78,8 @@ async def test_memory_added_to_vectordb(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -93,7 +92,7 @@ async def test_memory_added_to_vectordb(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -197,9 +196,8 @@ async def test_memory_semantic_search_retrieval(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         memory_config = {
@@ -211,7 +209,7 @@ async def test_memory_semantic_search_retrieval(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -336,9 +334,8 @@ async def test_memory_metadata_integrity(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         memory_config = {
@@ -350,7 +347,7 @@ async def test_memory_metadata_integrity(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -471,9 +468,8 @@ async def test_memory_update_syncs_to_vectordb(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         memory_config = {
@@ -486,7 +482,7 @@ async def test_memory_update_syncs_to_vectordb(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -589,9 +585,8 @@ async def test_memory_deletion_removes_from_vectordb(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         memory_config = {
@@ -603,7 +598,7 @@ async def test_memory_deletion_removes_from_vectordb(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -699,9 +694,8 @@ async def test_memory_vectordb_cross_query_relevance(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         memory_config = {
@@ -713,7 +707,7 @@ async def test_memory_vectordb_cross_query_relevance(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 

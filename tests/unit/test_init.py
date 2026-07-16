@@ -412,6 +412,7 @@ class TestAsyncSetupEntry:
         mock_vector_class,
         mock_agent_class,
         mock_session_manager_class,
+        mock_chroma_factory_class,
         mock_hass,
         mock_config_entry,
         mock_agent,
@@ -440,9 +441,12 @@ class TestAsyncSetupEntry:
         assert "vector_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
         assert "memory_manager" in mock_hass.data[DOMAIN][mock_config_entry.entry_id]
 
-        # Verify memory manager was passed the vector manager
+        # Memory is wired to the factory, never to the vector manager. This
+        # assertion used to require the opposite -- it was the borrowed client's
+        # own regression test, pinning the bug in place.
         call_args = mock_memory_class.call_args
-        assert call_args[1]["vector_db_manager"] == mock_vector_manager
+        assert call_args[1]["chroma_factory"] is mock_chroma_factory_class.return_value
+        assert "vector_db_manager" not in call_args[1]
 
     @patch("custom_components.pepa_sensory_arm.ConversationSessionManager")
     @patch("custom_components.pepa_sensory_arm.PepaSensoryArm")

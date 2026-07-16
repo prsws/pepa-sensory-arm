@@ -212,9 +212,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         try:
             from .memory_manager import MemoryManager
 
+            # The borrowed client dies here. Memory takes the factory directly;
+            # it no longer receives VectorDBManager (or None, when Context Mode
+            # was Direct -- which is exactly how setting Direct used to
+            # silently kill memory's vector search, sync, and dedup).
             memory_manager = MemoryManager(
                 hass=hass,
-                vector_db_manager=vector_manager,
+                chroma_factory=chroma_factory,
                 config=config,
             )
             await memory_manager.async_initialize()

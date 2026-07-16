@@ -93,9 +93,8 @@ async def test_memory_extraction_flow(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -109,7 +108,7 @@ async def test_memory_extraction_flow(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -225,9 +224,8 @@ async def test_memory_recall(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -240,7 +238,7 @@ async def test_memory_recall(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -372,9 +370,8 @@ async def test_memory_semantic_search(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -387,7 +384,7 @@ async def test_memory_semantic_search(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -520,9 +517,8 @@ async def test_memory_lifecycle(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -535,7 +531,7 @@ async def test_memory_lifecycle(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
@@ -630,9 +626,8 @@ async def test_memory_type_filtering(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(
-            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
-        )
+        chroma_factory = ChromaClientFactory(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(test_hass, vector_config, chroma_factory)
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -645,7 +640,7 @@ async def test_memory_type_filtering(
 
         memory_manager = MemoryManager(
             test_hass,
-            vector_db_manager,
+            chroma_factory,
             memory_config,
         )
 
