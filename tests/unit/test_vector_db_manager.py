@@ -13,6 +13,7 @@ from homeassistant.const import EVENT_STATE_CHANGED
 from homeassistant.core import Event, State
 
 from custom_components.pepa_sensory_arm.const import (
+    CHROMA_PLACEMENT_REMOTE,
     CONF_OPENAI_API_KEY,
     CONF_VECTOR_DB_COLLECTION,
     CONF_VECTOR_DB_EMBEDDING_BASE_URL,
@@ -84,6 +85,23 @@ def mock_chromadb():
 
 
 @pytest.fixture
+def mock_chroma_factory(mock_chromadb):
+    """Create a mock ChromaClientFactory.
+
+    VectorDBManager no longer constructs its own ChromaDB client -- it asks the
+    factory for one. The factory hands back the same client mock_chromadb builds,
+    so collection-level assertions in these tests are unaffected by where the
+    client came from.
+    """
+    factory = MagicMock()
+    factory.get_client = AsyncMock(return_value=mock_chromadb.HttpClient.return_value)
+    factory.health_check = AsyncMock(return_value=(True, "healthy"))
+    factory.available = True
+    factory.placement = CHROMA_PLACEMENT_REMOTE
+    return factory
+
+
+@pytest.fixture
 def vector_db_config():
     """Create test configuration for VectorDBManager."""
     return {
@@ -119,7 +137,7 @@ def mock_async_should_expose():
 
 @pytest.mark.asyncio
 async def test_reindex_indexes_all_entities_bug(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that demonstrates the bug: ALL entities are indexed regardless of exposure.
 
@@ -128,7 +146,7 @@ async def test_reindex_indexes_all_entities_bug(
     """
     # Patch CHROMADB_AVAILABLE and the embedding method
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Mock the embedding method to return a dummy vector
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
@@ -180,7 +198,7 @@ async def test_reindex_indexes_all_entities_bug(
 
 @pytest.mark.asyncio
 async def test_state_change_respects_exposure(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that state changes only trigger indexing for exposed entities.
 
@@ -188,7 +206,7 @@ async def test_state_change_respects_exposure(
     entity exposure settings.
     """
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         await manager._ensure_initialized()
@@ -224,11 +242,11 @@ async def test_state_change_respects_exposure(
 
 @pytest.mark.asyncio
 async def test_should_skip_entity_includes_non_exposed(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that _should_skip_entity considers entity exposure."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Patch at the module where it's imported and used
         with patch(
@@ -259,11 +277,11 @@ async def test_should_skip_entity_includes_non_exposed(
 
 @pytest.mark.asyncio
 async def test_async_setup_performs_initial_indexing(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that async_setup performs initial entity indexing."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         # Track indexed entities
@@ -290,10 +308,12 @@ async def test_async_setup_performs_initial_indexing(
 
 
 @pytest.mark.asyncio
-async def test_async_setup_registers_state_listeners(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_setup_registers_state_listeners(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_setup registers state change listeners."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         await manager._ensure_initialized()
@@ -319,10 +339,12 @@ async def test_async_setup_registers_state_listeners(mock_hass, mock_chromadb, v
 
 
 @pytest.mark.asyncio
-async def test_async_setup_handles_chromadb_failure(mock_hass, vector_db_config):
+async def test_async_setup_handles_chromadb_failure(
+    mock_hass, vector_db_config, mock_chroma_factory
+):
     """Test that async_setup handles ChromaDB initialization failure."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Make _ensure_initialized raise an error
         with patch.object(
@@ -335,10 +357,12 @@ async def test_async_setup_handles_chromadb_failure(mock_hass, vector_db_config)
 
 
 @pytest.mark.asyncio
-async def test_async_shutdown_cleans_up_listeners(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_shutdown_cleans_up_listeners(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_shutdown properly cleans up listeners and resources."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         await manager._ensure_initialized()
@@ -368,10 +392,12 @@ async def test_async_shutdown_cleans_up_listeners(mock_hass, mock_chromadb, vect
 
 
 @pytest.mark.asyncio
-async def test_async_shutdown_handles_no_listeners(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_shutdown_handles_no_listeners(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_shutdown handles case where no listeners are registered."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Shutdown without setting up listeners
         await manager.async_shutdown()
@@ -387,10 +413,12 @@ async def test_async_shutdown_handles_no_listeners(mock_hass, mock_chromadb, vec
 
 
 @pytest.mark.asyncio
-async def test_embed_text_uses_cache(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_text_uses_cache(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that _embed_text uses cached embeddings when available."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Pre-populate cache
         test_text = "test entity"
@@ -414,13 +442,15 @@ async def test_embed_text_uses_cache(mock_hass, mock_chromadb, vector_db_config)
 
 
 @pytest.mark.asyncio
-async def test_embed_text_cache_miss_generates_new(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_text_cache_miss_generates_new(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that _embed_text generates new embedding on cache miss."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "new entity"
         new_embedding = [0.7] * 384
@@ -444,13 +474,15 @@ async def test_embed_text_cache_miss_generates_new(mock_hass, mock_chromadb, vec
 
 
 @pytest.mark.asyncio
-async def test_embed_text_entity_id_evicts_stale_cache(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_text_entity_id_evicts_stale_cache(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that _embed_text evicts stale cache entry when entity state changes."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         old_embedding = [0.1] * 384
         new_embedding = [0.9] * 384
@@ -490,13 +522,15 @@ async def test_embed_text_entity_id_evicts_stale_cache(mock_hass, mock_chromadb,
 
 
 @pytest.mark.asyncio
-async def test_embed_text_without_entity_id_no_eviction(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_text_without_entity_id_no_eviction(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that _embed_text without entity_id preserves normal LRU behavior."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
         manager._embed_with_ollama = AsyncMock(return_value=[0.5] * 384)
 
         # Two different texts without entity_id — both should stay in cache
@@ -507,10 +541,14 @@ async def test_embed_text_without_entity_id_no_eviction(mock_hass, mock_chromadb
 
 
 @pytest.mark.asyncio
-async def test_remove_entity_cleans_embedding_cache(mock_hass, mock_chromadb, vector_db_config):
+async def test_remove_entity_cleans_embedding_cache(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_remove_entity cleans up the embedding cache entry."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config=vector_db_config)
+        manager = VectorDBManager(
+            mock_hass, config=vector_db_config, chroma_factory=mock_chroma_factory
+        )
         manager._embed_with_ollama = AsyncMock(return_value=[0.3] * 384)
 
         await manager._ensure_initialized()
@@ -535,7 +573,7 @@ async def test_remove_entity_cleans_embedding_cache(mock_hass, mock_chromadb, ve
 
 @pytest.mark.asyncio
 async def test_index_entity_state_change_evicts_stale_cache(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test full flow: async_index_entity evicts stale cache on state change.
 
@@ -546,7 +584,7 @@ async def test_index_entity_state_change_evicts_stale_cache(
     - ChromaDB upsert is called with the new data
     """
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         call_count = 0
 
@@ -603,10 +641,12 @@ async def test_index_entity_state_change_evicts_stale_cache(
 
 
 @pytest.mark.asyncio
-async def test_shutdown_clears_entity_cache_keys(mock_hass, mock_chromadb, vector_db_config):
+async def test_shutdown_clears_entity_cache_keys(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_shutdown clears the entity cache key mapping."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Simulate populated cache state
         manager._embedding_cache["abc"] = [0.1] * 384
@@ -619,7 +659,9 @@ async def test_shutdown_clears_entity_cache_keys(mock_hass, mock_chromadb, vecto
 
 
 @pytest.mark.asyncio
-async def test_embed_with_openai_success(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_openai_success(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test successful embedding generation with OpenAI."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
@@ -629,7 +671,7 @@ async def test_embed_with_openai_success(mock_hass, mock_chromadb, vector_db_con
         patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
         patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
     ):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "test entity"
         expected_embedding = [0.3] * 1536
@@ -660,7 +702,9 @@ async def test_embed_with_openai_success(mock_hass, mock_chromadb, vector_db_con
 
 
 @pytest.mark.asyncio
-async def test_embed_with_openai_api_error(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_openai_api_error(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that OpenAI API errors are properly handled."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
@@ -670,7 +714,7 @@ async def test_embed_with_openai_api_error(mock_hass, mock_chromadb, vector_db_c
         patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
         patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
     ):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "test entity"
 
@@ -694,7 +738,9 @@ async def test_embed_with_openai_api_error(mock_hass, mock_chromadb, vector_db_c
 
 
 @pytest.mark.asyncio
-async def test_embed_with_openai_missing_api_key(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_openai_missing_api_key(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that missing OpenAI API key raises error."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
@@ -704,14 +750,16 @@ async def test_embed_with_openai_missing_api_key(mock_hass, mock_chromadb, vecto
         patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
         patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", True),
     ):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         with pytest.raises(ContextInjectionError, match="OpenAI API key not configured"):
             await manager._embed_with_openai("test text")
 
 
 @pytest.mark.asyncio
-async def test_embed_with_openai_library_not_available(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_openai_library_not_available(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that missing OpenAI library raises error."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OPENAI
@@ -721,21 +769,23 @@ async def test_embed_with_openai_library_not_available(mock_hass, mock_chromadb,
         patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True),
         patch("custom_components.pepa_sensory_arm.vector_db_manager.OPENAI_AVAILABLE", False),
     ):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         with pytest.raises(ContextInjectionError, match="OpenAI library not installed"):
             await manager._embed_with_openai("test text")
 
 
 @pytest.mark.asyncio
-async def test_embed_with_ollama_success(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_ollama_success(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test successful embedding generation with Ollama."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
     config[CONF_VECTOR_DB_EMBEDDING_BASE_URL] = "http://localhost:11434"
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "test entity"
         expected_embedding = [0.4] * 768
@@ -768,13 +818,15 @@ async def test_embed_with_ollama_success(mock_hass, mock_chromadb, vector_db_con
 
 
 @pytest.mark.asyncio
-async def test_embed_with_ollama_timeout(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_ollama_timeout(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that Ollama timeout errors are properly handled."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "test entity"
 
@@ -803,13 +855,15 @@ async def test_embed_with_ollama_timeout(mock_hass, mock_chromadb, vector_db_con
 
 
 @pytest.mark.asyncio
-async def test_embed_with_ollama_api_error(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_with_ollama_api_error(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that Ollama API errors are properly handled."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = EMBEDDING_PROVIDER_OLLAMA
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         test_text = "test entity"
 
@@ -840,13 +894,15 @@ async def test_embed_with_ollama_api_error(mock_hass, mock_chromadb, vector_db_c
 
 
 @pytest.mark.asyncio
-async def test_embed_text_unknown_provider(mock_hass, mock_chromadb, vector_db_config):
+async def test_embed_text_unknown_provider(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that unknown embedding provider raises error."""
     config = vector_db_config.copy()
     config[CONF_VECTOR_DB_EMBEDDING_PROVIDER] = "unknown_provider"
 
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, config)
+        manager = VectorDBManager(mock_hass, config, mock_chroma_factory)
 
         with pytest.raises(ContextInjectionError, match="Unknown embedding provider"):
             await manager._embed_text("test text")
@@ -858,10 +914,12 @@ async def test_embed_text_unknown_provider(mock_hass, mock_chromadb, vector_db_c
 
 
 @pytest.mark.asyncio
-async def test_async_remove_entity_success(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_remove_entity_success(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test successful entity removal from ChromaDB."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -877,10 +935,12 @@ async def test_async_remove_entity_success(mock_hass, mock_chromadb, vector_db_c
 
 
 @pytest.mark.asyncio
-async def test_async_remove_entity_handles_error(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_remove_entity_handles_error(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that entity removal handles errors gracefully."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -893,10 +953,12 @@ async def test_async_remove_entity_handles_error(mock_hass, mock_chromadb, vecto
 
 
 @pytest.mark.asyncio
-async def test_async_collection_exists_returns_true(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_collection_exists_returns_true(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_collection_exists returns True for existing collection."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -910,10 +972,12 @@ async def test_async_collection_exists_returns_true(mock_hass, mock_chromadb, ve
 
 
 @pytest.mark.asyncio
-async def test_async_collection_exists_returns_false(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_collection_exists_returns_false(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_collection_exists returns False for non-existent collection."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -926,10 +990,12 @@ async def test_async_collection_exists_returns_false(mock_hass, mock_chromadb, v
 
 
 @pytest.mark.asyncio
-async def test_async_collection_exists_no_client(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_collection_exists_no_client(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that async_collection_exists returns False when client is None."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Patch _ensure_initialized to not actually initialize, keeping client as None
         async def mock_ensure_initialized():
@@ -949,11 +1015,11 @@ async def test_async_collection_exists_no_client(mock_hass, mock_chromadb, vecto
 
 @pytest.mark.asyncio
 async def test_async_handle_state_change_triggers_reindex(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that state changes trigger debounced entity reindexing."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         await manager._ensure_initialized()
@@ -988,11 +1054,11 @@ async def test_async_handle_state_change_triggers_reindex(
 
 @pytest.mark.asyncio
 async def test_async_handle_state_change_skips_non_exposed(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that state changes for non-exposed entities are ignored."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         # Mock the reindex method
         with patch.object(manager, "async_index_entity", AsyncMock()) as mock_index:
@@ -1016,11 +1082,11 @@ async def test_async_handle_state_change_skips_non_exposed(
 
 @pytest.mark.asyncio
 async def test_debounced_reindex_batches_multiple_entities(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that debounced reindex batches multiple entity changes."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         manager._embed_text = AsyncMock(return_value=[0.1] * 384)
 
         await manager._ensure_initialized()
@@ -1049,11 +1115,11 @@ async def test_debounced_reindex_batches_multiple_entities(
 
 @pytest.mark.asyncio
 async def test_debounced_reindex_handles_error_gracefully(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that debounced reindexing handles errors gracefully."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -1079,11 +1145,11 @@ async def test_debounced_reindex_handles_error_gracefully(
 
 @pytest.mark.asyncio
 async def test_async_run_maintenance_removes_stale_entities(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test that maintenance task removes stale entities."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -1112,11 +1178,11 @@ async def test_async_run_maintenance_removes_stale_entities(
 
 @pytest.mark.asyncio
 async def test_async_run_maintenance_handles_no_stale_entities(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test maintenance task when no stale entities exist."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -1138,10 +1204,12 @@ async def test_async_run_maintenance_handles_no_stale_entities(
 
 
 @pytest.mark.asyncio
-async def test_async_run_maintenance_handles_error(mock_hass, mock_chromadb, vector_db_config):
+async def test_async_run_maintenance_handles_error(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that maintenance task handles errors gracefully."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -1154,11 +1222,11 @@ async def test_async_run_maintenance_handles_error(mock_hass, mock_chromadb, vec
 
 @pytest.mark.asyncio
 async def test_async_run_maintenance_handles_empty_result(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test maintenance task when collection.get() returns empty result."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         await manager._ensure_initialized()
 
@@ -1176,11 +1244,11 @@ async def test_async_run_maintenance_handles_empty_result(
 
 @pytest.mark.asyncio
 async def test_state_change_skipped_when_state_and_attributes_unchanged(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that reindex is skipped when old and new state are identical."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
 
         with patch.object(manager, "async_index_entity", AsyncMock()) as mock_index:
             old_state = State("light.living_room", "on", {"brightness": 255})
@@ -1208,11 +1276,11 @@ async def test_state_change_skipped_when_state_and_attributes_unchanged(
 
 @pytest.mark.asyncio
 async def test_state_change_triggers_reindex_when_state_value_changes(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that reindex runs when state value changes."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         await manager._ensure_initialized()
 
         with (
@@ -1245,11 +1313,11 @@ async def test_state_change_triggers_reindex_when_state_value_changes(
 
 @pytest.mark.asyncio
 async def test_state_change_triggers_reindex_when_attributes_change(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that reindex runs when attributes change even if state value is same."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         await manager._ensure_initialized()
 
         with (
@@ -1282,11 +1350,11 @@ async def test_state_change_triggers_reindex_when_attributes_change(
 
 @pytest.mark.asyncio
 async def test_state_change_triggers_reindex_for_new_entity(
-    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose
+    mock_hass, mock_chromadb, vector_db_config, mock_async_should_expose, mock_chroma_factory
 ):
     """Test that reindex runs when old_state is None (entity first appearance)."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         await manager._ensure_initialized()
 
         with (
@@ -1321,11 +1389,11 @@ async def test_state_change_triggers_reindex_for_new_entity(
 
 
 def test_create_entity_text_includes_area_from_entity_registry(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test that entity-level area_id is used in entity text."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         state = State("light.living_room", "on", {"friendly_name": "Living Room Light"})
 
         mock_entity_entry = MagicMock()
@@ -1355,10 +1423,12 @@ def test_create_entity_text_includes_area_from_entity_registry(
         assert "Location: Living Room" in text
 
 
-def test_create_entity_text_falls_back_to_device_area(mock_hass, mock_chromadb, vector_db_config):
+def test_create_entity_text_falls_back_to_device_area(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that device area is used when entity has no direct area_id."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         state = State("light.living_room", "on", {"friendly_name": "Living Room Light"})
 
         mock_entity_entry = MagicMock()
@@ -1392,11 +1462,11 @@ def test_create_entity_text_falls_back_to_device_area(mock_hass, mock_chromadb, 
 
 
 def test_create_entity_text_no_area_when_entity_has_no_device(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test that no Location is included for entities with no device and no area_id."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         state = State("input_boolean.test", "on", {"friendly_name": "Test Helper"})
 
         mock_entity_entry = MagicMock()
@@ -1424,11 +1494,11 @@ def test_create_entity_text_no_area_when_entity_has_no_device(
 
 
 def test_create_entity_text_entity_area_takes_priority_over_device_area(
-    mock_hass, mock_chromadb, vector_db_config
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
 ):
     """Test that entity-level area_id takes priority over device area."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         state = State("light.bedroom", "on", {"friendly_name": "Bedroom Light"})
 
         mock_entity_entry = MagicMock()
@@ -1464,10 +1534,12 @@ def test_create_entity_text_entity_area_takes_priority_over_device_area(
         assert "Living Room" not in text
 
 
-def test_create_entity_text_includes_aliases(mock_hass, mock_chromadb, vector_db_config):
+def test_create_entity_text_includes_aliases(
+    mock_hass, mock_chromadb, vector_db_config, mock_chroma_factory
+):
     """Test that entity aliases are included in entity text."""
     with patch("custom_components.pepa_sensory_arm.vector_db_manager.CHROMADB_AVAILABLE", True):
-        manager = VectorDBManager(mock_hass, vector_db_config)
+        manager = VectorDBManager(mock_hass, vector_db_config, mock_chroma_factory)
         state = State("light.living_room", "on", {"friendly_name": "Living Room Light"})
 
         mock_entity_entry = MagicMock()

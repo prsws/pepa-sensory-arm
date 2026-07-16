@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.pepa_sensory_arm.agent import PepaSensoryArm
+from custom_components.pepa_sensory_arm.chroma_factory import ChromaClientFactory
 from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
@@ -947,7 +948,9 @@ async def test_embedding_provider_openai(
             mock_client.get_or_create_collection.return_value = mock_collection
             mock_chromadb.return_value = mock_client
 
-            vector_db_manager = VectorDBManager(test_hass, config)
+            vector_db_manager = VectorDBManager(
+                test_hass, config, ChromaClientFactory(test_hass, config)
+            )
 
             # Mock the OpenAI embedding call
             with patch.object(
@@ -1026,7 +1029,9 @@ async def test_openai_embedding_with_custom_base_url(
             mock_client.get_or_create_collection.return_value = mock_collection
             mock_chromadb.return_value = mock_client
 
-            vector_db_manager = VectorDBManager(test_hass, config)
+            vector_db_manager = VectorDBManager(
+                test_hass, config, ChromaClientFactory(test_hass, config)
+            )
 
             # Verify the embedding_base_url is set from config
             assert (
@@ -1122,7 +1127,9 @@ async def test_embedding_provider_ollama(
             mock_client.get_or_create_collection.return_value = mock_collection
             mock_chromadb.return_value = mock_client
 
-            vector_db_manager = VectorDBManager(test_hass, config)
+            vector_db_manager = VectorDBManager(
+                test_hass, config, ChromaClientFactory(test_hass, config)
+            )
 
             # Mock the Ollama embedding call
             with patch.object(

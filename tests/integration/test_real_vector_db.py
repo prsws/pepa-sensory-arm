@@ -13,6 +13,7 @@ import asyncio
 
 import pytest
 
+from custom_components.pepa_sensory_arm.chroma_factory import ChromaClientFactory
 from custom_components.pepa_sensory_arm.vector_db_manager import VectorDBManager
 
 
@@ -79,7 +80,9 @@ class TestRealVectorDB:
         )
 
         # Create VectorDBManager
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
 
         try:
             # Initialize (this should connect to ChromaDB and create collection)
@@ -171,7 +174,9 @@ class TestRealVectorDB:
         )
 
         # Create and initialize manager
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
 
         try:
             await manager.async_setup()
@@ -267,7 +272,9 @@ class TestRealVectorDB:
         )
 
         # Create and initialize manager
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
 
         try:
             await manager.async_setup()
@@ -416,7 +423,9 @@ class TestRealVectorDB:
 
         mock_hass_integration.states.async_all.return_value = []
 
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
 
         try:
             await manager._ensure_initialized()
@@ -494,7 +503,9 @@ class TestRealVectorDB:
             (s for s in sample_entity_states if s.entity_id == entity_id), None
         )
 
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
 
         try:
             await manager.async_setup()
@@ -646,7 +657,9 @@ class TestAreaLookupEntityIndexing:
             device_area_id=None,
         )
 
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
         try:
             await manager._ensure_initialized()
 
@@ -723,7 +736,9 @@ class TestAreaLookupEntityIndexing:
             has_device=True,
         )
 
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
         try:
             await manager._ensure_initialized()
 
@@ -792,7 +807,9 @@ class TestAreaLookupEntityIndexing:
             has_device=True,
         )
 
-        manager = VectorDBManager(mock_hass_integration, config)
+        manager = VectorDBManager(
+            mock_hass_integration, config, ChromaClientFactory(mock_hass_integration, config)
+        )
         try:
             await manager._ensure_initialized()
 

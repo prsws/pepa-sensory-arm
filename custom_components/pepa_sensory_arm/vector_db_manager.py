@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from chromadb.api import ClientAPI
     from chromadb.api.models.Collection import Collection
 
+from .chroma_factory import ChromaClientFactory
 from .const import (
     CONF_EMBEDDING_KEEP_ALIVE,
     CONF_OPENAI_API_KEY,
@@ -56,9 +57,10 @@ from .const import (
 from .exceptions import ContextInjectionError
 from .helpers import render_template_value, retry_async
 
-# Conditional imports for ChromaDB
+# Conditional import for ChromaDB. Imported only to detect availability -- the
+# client is constructed by ChromaClientFactory, not here.
 try:
-    import chromadb
+    import chromadb  # noqa: F401
 
     CHROMADB_AVAILABLE = True
 except ImportError:
@@ -93,12 +95,20 @@ MAX_CONCURRENT_REINDEX = 3
 class VectorDBManager:
     """Manages entity embeddings in ChromaDB."""
 
-    def __init__(self, hass: HomeAssistant, config: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        config: dict[str, Any],
+        chroma_factory: ChromaClientFactory,
+    ) -> None:
         """Initialize the Vector DB manager.
 
         Args:
             hass: Home Assistant instance
             config: Configuration dictionary
+            chroma_factory: The entry's client factory. The only source of
+                ChromaDB clients -- this manager no longer constructs its own,
+                which is what stops MemoryManager from having to borrow one.
         """
         if not CHROMADB_AVAILABLE:
             raise ContextInjectionError(
@@ -107,6 +117,7 @@ class VectorDBManager:
 
         self.hass = hass
         self.config = config
+        self.chroma_factory = chroma_factory
 
         # ChromaDB configuration
         self.host = config.get(CONF_VECTOR_DB_HOST, DEFAULT_VECTOR_DB_HOST)
@@ -604,36 +615,14 @@ class VectorDBManager:
     async def _ensure_initialized(self) -> None:
         """Ensure ChromaDB client and collection are initialized."""
         if self._client is None:
-            try:
-                # Create ChromaDB client in executor to avoid blocking the event loop
-                # ChromaDB's HttpClient does SSL setup and file I/O during init
-                from functools import partial
-
-                async def create_client_func() -> ClientAPI:
-                    """Create ChromaDB client."""
-                    create_client = partial(
-                        chromadb.HttpClient,
-                        host=self.host,
-                        port=self.port,
-                    )
-                    return await self.hass.async_add_executor_job(create_client)
-
-                self._client = await retry_async(
-                    create_client_func,
-                    max_retries=DEFAULT_RETRY_MAX_ATTEMPTS,
-                    retryable_exceptions=(Exception,),
-                    initial_delay=DEFAULT_RETRY_INITIAL_DELAY,
-                    backoff_factor=DEFAULT_RETRY_BACKOFF_FACTOR,
-                    max_delay=DEFAULT_RETRY_MAX_DELAY,
-                    jitter=DEFAULT_RETRY_JITTER,
-                )
-                _LOGGER.debug("ChromaDB client connected to %s:%s", self.host, self.port)
-            except Exception as err:
-                raise ContextInjectionError(f"Failed to connect to ChromaDB: {err}") from err
+            # Client construction, placement, retry, and availability tracking all
+            # live in the factory now. This manager just asks for a client.
+            self._client = await self.chroma_factory.get_client()
 
         if self._collection is None:
             try:
                 # Collection operations should also be in executor as they may do I/O
+                from functools import partial
 
                 assert self._client is not None  # Type narrowing for mypy
                 get_collection = partial(

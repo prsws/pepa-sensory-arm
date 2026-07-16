@@ -238,7 +238,9 @@
           "vector_db_embedding_model": "Embedding Model",
           "openai_api_key": "OpenAI API Key",
           "vector_db_top_k": "Top K Results",
-          "vector_db_similarity_threshold": "Similarity Threshold"
+          "vector_db_similarity_threshold": "Similarity Threshold",
+          "chroma_placement": "ChromaDB Placement",
+          "chroma_persist_dir": "Embedded Persist Directory"
         },
         "data_description": {
           "vector_db_host": "ChromaDB server hostname or IP address",
@@ -249,7 +251,9 @@
           "vector_db_embedding_model": "Model name (e.g., text-embedding-3-small for OpenAI, mxbai-embed-large for Ollama)",
           "openai_api_key": "Your OpenAI API key (only required if using OpenAI provider)",
           "vector_db_top_k": "Number of most relevant entities to retrieve",
-          "vector_db_similarity_threshold": "Maximum L2 distance threshold (lower = stricter matching, typical range: 150-300)"
+          "vector_db_similarity_threshold": "Maximum L2 distance threshold (lower = stricter matching, typical range: 150-300)",
+          "chroma_placement": "Remote connects to a ChromaDB server (host/port above). Embedded runs ChromaDB inside Home Assistant with no external service.",
+          "chroma_persist_dir": "Directory for the embedded ChromaDB store, relative to the Home Assistant config directory. Only used when placement is Embedded."
         }
       },
       "history_settings": {
@@ -411,6 +415,12 @@
         "openai": "OpenAI (Cloud)",
         "ollama": "Ollama (Local)"
       }
+    },
+    "chroma_placement": {
+      "options": {
+        "remote": "Remote (ChromaDB server)",
+        "embedded": "Embedded (in Home Assistant)"
+      }
     }
   },
   "services": {
@@ -431,6 +441,12 @@
     "clear_conversation": {
       "name": "Clear conversation",
       "description": "Clear conversation session and start fresh with no previous context. Allows users to reset voice conversations for a specific user or device, or all conversations at once."
+    }
+  },
+  "issues": {
+    "chroma_embedded_failed": {
+      "title": "Embedded ChromaDB failed to start",
+      "description": "Embedded ChromaDB could not start at {path}: {error}\n\nIf a ChromaDB host and port are configured, Pepa has fallen back to remote placement. Otherwise memory and vector search are running without semantic recall. Check that the persist directory is writable and that the chromadb package is installed."
     }
   }
 }

@@ -15,6 +15,7 @@ from custom_components.pepa_sensory_arm import (
     async_unload_entry,
 )
 from custom_components.pepa_sensory_arm.const import (
+    CHROMA_PLACEMENT_REMOTE,
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
     CONF_TOOLS_CUSTOM,
@@ -42,6 +43,25 @@ def mock_hass():
     hass.states = MagicMock()
     hass.states.get = MagicMock(return_value=None)
     return hass
+
+
+@pytest.fixture(autouse=True)
+def mock_chroma_factory_class():
+    """Patch the ChromaDB client factory for every setup/unload test.
+
+    These tests cover __init__.py's wiring, not the factory's internals: a real
+    factory would register a background availability probe and reach for
+    ChromaDB. The factory has its own tests.
+    """
+    with patch("custom_components.pepa_sensory_arm.ChromaClientFactory") as mock_class:
+        factory = MagicMock()
+        factory.async_setup = AsyncMock()
+        factory.health_check = AsyncMock(return_value=(True, "ChromaDB healthy"))
+        factory.async_shutdown = AsyncMock()
+        factory.placement = CHROMA_PLACEMENT_REMOTE
+        factory.available = True
+        mock_class.return_value = factory
+        yield mock_class
 
 
 @pytest.fixture

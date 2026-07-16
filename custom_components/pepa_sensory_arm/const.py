@@ -47,6 +47,10 @@ CONF_VECTOR_DB_EMBEDDING_MODEL: Final = "vector_db_embedding_model"
 CONF_VECTOR_DB_EMBEDDING_PROVIDER: Final = "vector_db_embedding_provider"
 CONF_VECTOR_DB_EMBEDDING_BASE_URL: Final = "vector_db_embedding_base_url"
 CONF_OPENAI_API_KEY: Final = "openai_api_key"
+
+# Configuration keys - ChromaDB client placement (see chroma_factory.py)
+CONF_CHROMA_PLACEMENT: Final = "chroma_placement"
+CONF_CHROMA_PERSIST_DIR: Final = "chroma_persist_dir"
 CONF_EMBEDDING_KEEP_ALIVE: Final = "embedding_keep_alive"
 
 # Configuration keys - Additional Collections
@@ -139,6 +143,12 @@ COMPRESSION_LEVEL_HIGH: Final = "high"
 EMBEDDING_PROVIDER_OPENAI: Final = "openai"
 EMBEDDING_PROVIDER_OLLAMA: Final = "ollama"
 
+# ChromaDB client placement
+#   embedded -- PersistentClient in-VM, zero external infrastructure
+#   remote   -- HttpClient against a ChromaDB server (today's only behavior)
+CHROMA_PLACEMENT_EMBEDDED: Final = "embedded"
+CHROMA_PLACEMENT_REMOTE: Final = "remote"
+
 # LLM Backend options
 LLM_BACKEND_DEFAULT: Final = "default"
 LLM_BACKEND_LLAMA_CPP: Final = "llama-cpp"
@@ -180,6 +190,25 @@ DEFAULT_VECTOR_DB_EMBEDDING_MODEL: Final = "text-embedding-3-small"
 DEFAULT_VECTOR_DB_EMBEDDING_PROVIDER: Final = EMBEDDING_PROVIDER_OLLAMA
 DEFAULT_VECTOR_DB_EMBEDDING_BASE_URL: Final = "http://localhost:11434"
 DEFAULT_EMBEDDING_KEEP_ALIVE: Final = "5m"
+
+# Default values - ChromaDB placement
+#
+# Default is REMOTE, deliberately. The Design Ledger §2.2 records embedded as the
+# intended default (zero-infrastructure for public HACS users), and that remains
+# the destination -- but the flip is gated on the P6 in-VM benchmark. The measured
+# embedded footprint on record (~222 MB RSS at ~5k vectors, ~485 MB at 50k) was
+# taken outside the 4 GB HAOS VM, so it does not yet discharge the hard invariant
+# that the VM never grows. Shipping embedded-by-default before that run would be
+# betting the VM on an unmeasured number.
+DEFAULT_CHROMA_PLACEMENT: Final = CHROMA_PLACEMENT_REMOTE
+
+# Persist directory for embedded placement, relative to hass.config.path()
+DEFAULT_CHROMA_PERSIST_DIR: Final = "pepa_chroma"
+
+# Seconds before the client factory's cached availability flag is considered
+# stale and re-probed. See MemoryCapabilities.vector_recall for the
+# bounded-staleness contract this implements.
+CHROMA_AVAILABILITY_TTL: Final = 60
 
 # Default values - Additional Collections
 DEFAULT_ADDITIONAL_COLLECTIONS: Final[list[str]] = []

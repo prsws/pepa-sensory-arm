@@ -27,9 +27,13 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 
 from .const import (
+    CHROMA_PLACEMENT_EMBEDDED,
+    CHROMA_PLACEMENT_REMOTE,
     CONF_ADDITIONAL_COLLECTIONS,
     CONF_ADDITIONAL_L2_DISTANCE_THRESHOLD,
     CONF_ADDITIONAL_TOP_K,
+    CONF_CHROMA_PERSIST_DIR,
+    CONF_CHROMA_PLACEMENT,
     CONF_CONTEXT_FORMAT,
     CONF_CONTEXT_MODE,
     CONF_DEBUG_LOGGING,
@@ -92,6 +96,8 @@ from .const import (
     DEFAULT_ADDITIONAL_COLLECTIONS,
     DEFAULT_ADDITIONAL_L2_DISTANCE_THRESHOLD,
     DEFAULT_ADDITIONAL_TOP_K,
+    DEFAULT_CHROMA_PERSIST_DIR,
+    DEFAULT_CHROMA_PLACEMENT,
     DEFAULT_CONTEXT_FORMAT,
     DEFAULT_CONTEXT_MODE,
     DEFAULT_DEBUG_LOGGING,
@@ -752,6 +758,32 @@ class PepaSensoryArmOptionsFlow(config_entries.OptionsFlow):
                             current_data.get(CONF_VECTOR_DB_PORT, DEFAULT_VECTOR_DB_PORT),
                         ),
                     ): vol.All(vol.Coerce(int), vol.Range(min=1, max=65535)),
+                    vol.Optional(
+                        CONF_CHROMA_PLACEMENT,
+                        default=current_options.get(
+                            CONF_CHROMA_PLACEMENT,
+                            current_data.get(CONF_CHROMA_PLACEMENT, DEFAULT_CHROMA_PLACEMENT),
+                        ),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                CHROMA_PLACEMENT_REMOTE,
+                                CHROMA_PLACEMENT_EMBEDDED,
+                            ],
+                            translation_key="chroma_placement",
+                        )
+                    ),
+                    # Only meaningful under embedded placement; ignored otherwise.
+                    # HA renders a step's schema statically, so this cannot be
+                    # hidden behind the selector above without splitting the step
+                    # in two -- not worth the flow churn for one field.
+                    vol.Optional(
+                        CONF_CHROMA_PERSIST_DIR,
+                        default=current_options.get(
+                            CONF_CHROMA_PERSIST_DIR,
+                            current_data.get(CONF_CHROMA_PERSIST_DIR, DEFAULT_CHROMA_PERSIST_DIR),
+                        ),
+                    ): str,
                     vol.Optional(
                         CONF_VECTOR_DB_COLLECTION,
                         default=current_options.get(
