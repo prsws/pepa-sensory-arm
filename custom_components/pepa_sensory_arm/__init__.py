@@ -16,6 +16,7 @@ from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers.typing import ConfigType
 
 from .agent import PepaSensoryArm
+from .chroma_factory import ChromaClientFactory
 from .const import (
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
@@ -25,21 +26,17 @@ from .const import (
     CONF_TOOLS_CUSTOM,
     CONF_VECTOR_DB_EMBEDDING_BASE_URL,
     CONF_VECTOR_DB_EMBEDDING_PROVIDER,
-    CONF_VECTOR_DB_HOST,
-    CONF_VECTOR_DB_PORT,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_MEMORY_ENABLED,
     DEFAULT_PROMPT_USE_DEFAULT,
     DEFAULT_SESSION_PERSISTENCE_ENABLED,
     DEFAULT_SESSION_TIMEOUT,
     DEFAULT_VECTOR_DB_EMBEDDING_BASE_URL,
-    DEFAULT_VECTOR_DB_HOST,
-    DEFAULT_VECTOR_DB_PORT,
     DOMAIN,
     EMBEDDING_PROVIDER_OLLAMA,
 )
 from .conversation_session import ConversationSessionManager
-from .helpers import check_chromadb_health, check_ollama_health
+from .helpers import check_ollama_health
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -137,31 +134,49 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "session_manager": session_manager,
     }
 
-    # Perform health checks if using vector DB mode
+    # Construct the ChromaDB client factory if anything needs ChromaDB.
+    #
+    # "Either", not "and": memory's vector capability is independent of the
+    # entity-context Context Mode. Tying them together is the borrowed-client
+    # bug -- setting Context Mode to Direct used to silently kill memory vector
+    # search, sync, and dedup.
     context_mode = config.get(CONF_CONTEXT_MODE)
+    memory_enabled = config.get(CONF_MEMORY_ENABLED, DEFAULT_MEMORY_ENABLED)
+    chroma_factory = None
+
+    if context_mode == CONTEXT_MODE_VECTOR_DB or memory_enabled:
+        chroma_factory = ChromaClientFactory(hass, config)
+        await chroma_factory.async_setup()
+        hass.data[DOMAIN][entry.entry_id]["chroma_factory"] = chroma_factory
+
+        # Placement-aware health check. The previous probe here hit host/port
+        # unconditionally, which is meaningless under embedded placement.
+        chromadb_healthy, chromadb_msg = await chroma_factory.health_check()
+        if not chromadb_healthy:
+            _LOGGER.warning(
+                "ChromaDB health check failed (placement=%s) - %s. "
+                "Vector DB and memory features may not work until ChromaDB is available.",
+                chroma_factory.placement,
+                chromadb_msg,
+            )
+        else:
+            _LOGGER.info(
+                "ChromaDB health check passed (placement=%s): %s",
+                chroma_factory.placement,
+                chromadb_msg,
+            )
+
+    # Check Ollama health if using Ollama embeddings.
+    #
+    # Left here deliberately: this is an embedding-provider concern, not a
+    # placement concern, so it does not belong to the client factory. It follows
+    # the embedding stack into embedder.py in P2 commit 2b.
     if context_mode == CONTEXT_MODE_VECTOR_DB:
-        # Get configuration values
-        chromadb_host = config.get(CONF_VECTOR_DB_HOST, DEFAULT_VECTOR_DB_HOST)
-        chromadb_port = config.get(CONF_VECTOR_DB_PORT, DEFAULT_VECTOR_DB_PORT)
         embedding_provider = config.get(CONF_VECTOR_DB_EMBEDDING_PROVIDER)
         embedding_base_url = config.get(
             CONF_VECTOR_DB_EMBEDDING_BASE_URL, DEFAULT_VECTOR_DB_EMBEDDING_BASE_URL
         )
 
-        # Check ChromaDB health
-        chromadb_healthy, chromadb_msg = await check_chromadb_health(chromadb_host, chromadb_port)
-        if not chromadb_healthy:
-            _LOGGER.warning(
-                "ChromaDB health check failed at %s:%s - %s. "
-                "Vector DB features may not work until ChromaDB is available.",
-                chromadb_host,
-                chromadb_port,
-                chromadb_msg,
-            )
-        else:
-            _LOGGER.info("ChromaDB health check passed: %s", chromadb_msg)
-
-        # Check Ollama health if using Ollama embeddings
         if embedding_provider == EMBEDDING_PROVIDER_OLLAMA:
             ollama_healthy, ollama_msg = await check_ollama_health(embedding_base_url)
             if not ollama_healthy:
@@ -174,13 +189,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             else:
                 _LOGGER.info("Ollama health check passed: %s", ollama_msg)
 
-    # Set up vector DB manager if using vector DB mode
+    # Set up vector DB manager if using vector DB mode.
+    #
+    # Still gated on Context Mode -- entity indexing genuinely is a Context Mode
+    # concern. What is no longer gated on it is memory's access to ChromaDB,
+    # which now comes from the factory above rather than from this object.
     vector_manager = None
-    if context_mode == CONTEXT_MODE_VECTOR_DB:
+    if context_mode == CONTEXT_MODE_VECTOR_DB and chroma_factory is not None:
         try:
             from .vector_db_manager import VectorDBManager
 
-            vector_manager = VectorDBManager(hass, config)
+            vector_manager = VectorDBManager(hass, config, chroma_factory)
             await vector_manager.async_setup()
             hass.data[DOMAIN][entry.entry_id]["vector_manager"] = vector_manager
             _LOGGER.info("Vector DB Manager enabled for this entry")
@@ -189,7 +208,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             # Continue setup without vector DB
 
     # Set up memory manager if enabled
-    memory_enabled = config.get(CONF_MEMORY_ENABLED, DEFAULT_MEMORY_ENABLED)
     if memory_enabled:
         try:
             from .memory_manager import MemoryManager
@@ -258,6 +276,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Shut down vector DB manager if it exists
         if "vector_manager" in entry_data:
             await entry_data["vector_manager"].async_shutdown()
+
+        # Shut down the client factory last: it is shared between the managers
+        # above, so it can only be released once both have stopped using it.
+        if "chroma_factory" in entry_data:
+            await entry_data["chroma_factory"].async_shutdown()
 
         # Clean up agent
         agent: PepaSensoryArm = entry_data["agent"]

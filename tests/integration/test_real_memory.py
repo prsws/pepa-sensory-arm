@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from custom_components.pepa_sensory_arm.chroma_factory import ChromaClientFactory
 from custom_components.pepa_sensory_arm.const import (
     CONF_CONTEXT_MODE,
     CONF_VECTOR_DB_COLLECTION,
@@ -92,7 +93,9 @@ async def test_memory_extraction_flow(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(
+            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
+        )
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -222,7 +225,9 @@ async def test_memory_recall(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(
+            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
+        )
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -367,7 +372,9 @@ async def test_memory_semantic_search(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(
+            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
+        )
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -513,7 +520,9 @@ async def test_memory_lifecycle(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(
+            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
+        )
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
@@ -621,7 +630,9 @@ async def test_memory_type_filtering(
     ):
         test_hass.states.async_all = MagicMock(return_value=[])
 
-        vector_db_manager = VectorDBManager(test_hass, vector_config)
+        vector_db_manager = VectorDBManager(
+            test_hass, vector_config, ChromaClientFactory(test_hass, vector_config)
+        )
         await vector_db_manager._ensure_initialized()
 
         # Configure MemoryManager
