@@ -97,6 +97,59 @@ Also deferred to commit 3: the once-per-op-per-session `_LOGGER.warning` require
 
 ---
 
+## 2026-07-16 — Commit 2a landed: `chroma_factory.py`
+
+Commit `4de2f0c`, merged to main via PR #4 as `db80c82`. Factory, both placements, availability, placement-aware health check; `VectorDBManager` sources its client from the factory. Unit 1513, offline integration 268 (baseline), zero new mypy errors.
+
+Deviation recorded: the persist-dir config field is always visible rather than "shown only when embedded" (spec §4.2). Home Assistant renders a step's schema statically, so true conditionality requires splitting the step in two; judged not worth the flow churn for one field. Documented at the schema site.
+
+Also added, unrequested but load-bearing: translation strings for the placement selector and the repair issue (`strings.json`, `translations/en.json`). Without them both render as raw slugs in the UI.
+
+### Process failure worth recording
+
+Only the unit suite was being run during 2a's development. When the offline integration suite was finally run, it was 9 tests red — the `VectorDBManager` constructor change had broken them several steps earlier, unnoticed. Baseline on `main` was 268 passing, so they were genuinely new breakage, since fixed. Both suites are now run at every checkpoint, plus a `--collect-only` pass over the excluded live-service tests, which construct `VectorDBManager` too and would otherwise fail at the next live run.
+
+---
+
+## 2026-07-16 — Finding 5: the declared `embed_text` signature cannot express its own namespacing
+
+**Falsifies:** spec §4.2's `embed_text(self, text: str, entity_id: str | None = None)`.
+
+§4.3 requires entity and memory embeddings to occupy separate cache namespaces, on the rationale that "memory recall queries and entity state-text evict each other" under one LRU. But the namespace is a property of the **caller**, not of the arguments: `MemoryManager`'s recall queries and `VectorDBManager`'s *query* embeds both pass `entity_id=None`. `entity_id` therefore cannot select the namespace, and the declared signature has no other parameter that can.
+
+**Resolved:** an explicit `namespace: CacheNamespace = CACHE_NS_ENTITY` parameter on `Embedder.embed_text()` and `ChromaClientFactory.embed_text()`. Defaulting to the entity namespace preserves `VectorDBManager`'s behavior exactly, including through the `_embed_text` shim, which passes no namespace. `MemoryManager` will pass `CACHE_NS_MEMORY` explicitly in commit 3.
+
+## 2026-07-16 — Amendment 2: Finding 3's count was 8; the real number is 16
+
+**Supersedes:** Finding 3's "8 tests" and this log's earlier statement that commit 2b carries a rewrite of 8.
+
+Finding 3 counted only tests asserting on cache internals. José's ruling on Finding 4 — extract an `Embedder` — moved the embedding **providers** as well, so the provider tests moved with them. The full set that had to leave `test_vector_db_manager.py` is 16:
+
+- 8 cache-internal (Finding 3's original list)
+- 7 provider: `test_embed_with_openai_{success,api_error,missing_api_key,library_not_available}`, `test_embed_with_ollama_{success,api_error,timeout}`, plus `test_embed_text_unknown_provider`
+
+15 were removed outright and ported to the new `tests/unit/test_embedder.py`; `test_async_shutdown_cleans_up_listeners` was rewritten in place, since listener teardown remains `VectorDBManager`'s concern while the cache assertion in its tail did not.
+
+Three integration tests in `test_config_variations.py` also asserted on `vector_db_manager.embedding_provider` / `.embedding_base_url` and patched `_embed_with_ollama` on the manager. They now reach the same state through `vector_db_manager.chroma_factory.embedder`. Not previously counted anywhere.
+
+The lesson generalizes: a count taken before a design ruling is a count of the old design. Finding 3 was honest when written and wrong once Finding 4 was resolved.
+
+## 2026-07-16 — Commit 2b landed: `embedder.py`
+
+The embedding stack leaves `VectorDBManager` whole: provider config, `_embed_with_openai`, `_embed_with_ollama`, `_ensure_aiohttp_session`, both client lifecycles, and the cache. What remains in the manager is a deprecated `_embed_text` shim delegating to the factory.
+
+Per José's rulings:
+
+- **`evict_entity()` and a namespace-scoped `clear_cache()`** added to the factory surface. `async_remove_entity` evicts through the factory; `async_shutdown` calls `clear_cache(CACHE_NS_ENTITY)` and **nothing else**.
+- **`VectorDBManager.async_shutdown()` no longer closes the shared HTTP clients.** It used to close `_aiohttp_session` and `_openai_client`; those are now the shared embedder's, and closing them would break `MemoryManager` — the same cross-manager side effect as the cache clear, one layer down. `ChromaClientFactory.async_shutdown()` closes the embedder, once, at unload, after both managers stop.
+- **No cache proxy shims.** The `_embed_text` shim survives for its callers and one release of deprecation; the cache attributes moved clean. The asymmetry is deliberate — do not restore symmetry by adding cache proxies back.
+
+Cache budgets moved to `const.py` as `EMBEDDING_CACHE_MAX_SIZE` (entity, unchanged at 1000) and `MEMORY_EMBEDDING_CACHE_MAX_SIZE` (memory, 1000). Retuning either is P6's call.
+
+Verified: unit 1526, offline integration 268 (baseline), live-service tests collect (14). mypy **removed** one pre-existing error (`Returning Any` in `_embed_with_ollama`, annotated during the move) and added none — 23/10 against main's 24/11.
+
+---
+
 ## 2026-07-16 — Open discrepancy: Chroma placement default
 
 Ledger §2.2 states Chroma placement defaults to `embedded` ("zero-infrastructure for public HACS users"), optional `remote`. Spec §4.1 states `DEFAULT_CHROMA_PLACEMENT = CHROMA_PLACEMENT_REMOTE`, with the embedded flip gated on P6's in-VM benchmark, and §2 routes the flip out of scope.

@@ -210,6 +210,15 @@ DEFAULT_CHROMA_PERSIST_DIR: Final = "pepa_chroma"
 # bounded-staleness contract this implements.
 CHROMA_AVAILABILITY_TTL: Final = 60
 
+# Embedding cache budgets, per namespace (each vector is ~3-12KB).
+#
+# Entity and memory embeddings are cached separately so they cannot evict each
+# other; see embedder.py. The entity budget is unchanged from when the cache
+# lived in VectorDBManager, deliberately: retuning either number is P6's call,
+# informed by the in-VM benchmark, not something to slip into a refactor.
+EMBEDDING_CACHE_MAX_SIZE: Final = 1000
+MEMORY_EMBEDDING_CACHE_MAX_SIZE: Final = 1000
+
 # Default values - Additional Collections
 DEFAULT_ADDITIONAL_COLLECTIONS: Final[list[str]] = []
 DEFAULT_ADDITIONAL_TOP_K: Final = 5
