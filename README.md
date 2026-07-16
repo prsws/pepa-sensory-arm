@@ -9,9 +9,11 @@
 A highly customizable Home Assistant custom component that performs as the sensory arm of the Pepa system.
 AI capabilities include advanced tool calling, context injection, and conversation history management.
 
-## What's New in v0.9.5
+## What's New in v0.1.0-alpha
 
-- **First Refactor from Upstream** - This version is the first after forking aradlein/home_agent_llm Thank you!
+- **New version numbering** - PAS is now independent and protected from automatic upstream changes. 
+- **Initial advanced context management** - Still alpha but a solid foundation for memory collection.
+- **Updated requirements and installation instructions** - Read them thoroughly.
 
 [View Full Changelog](https://github.com/prsws/pepa-sensory-arm/releases)
 
@@ -52,8 +54,10 @@ Pepa Sensory Arm extends Home Assistant's native conversation platform to enable
 ## Requirements
 
 ### Required
-- **Home Assistant** - Version 2026.3.1 or later (for Python 3.14 support)
+- **Home Assistant** - Version 2026.6.1 or later (for Python 3.14 support)
 - **Python Dependencies** - `aiohttp >= 3.9.0` (included with Home Assistant)
+- **HACS** - Home Assistant Community Store (required for installation)
+- **Pyscript** - Python HACS integration
 
 ### Optional (Enable Advanced Features)
 - **ChromaDB** - For vector database context mode
@@ -62,14 +66,15 @@ Pepa Sensory Arm extends Home Assistant's native conversation platform to enable
 - **OpenAI** - For embeddings in vector DB mode
   - `openai >= 1.3.8`
   - Required for: Vector DB entity indexing (alternative: use Ollama)
-- **Wyoming Protocol TTS** - For streaming responses
+- **Wyoming Protocol STT/TTS** - For streaming responses
   - Required for: Low-latency voice assistant integration
 
 ## Installation
 
 ### HACS (Recommended)
 
-1. In HACS, go to **Integrations** → **⋮** → **Custom repositories**
+1. **In HACS, install Pyscript if not already running** refer to its docs
+2. Return to HACS, go to **Integrations** → **⋮** → **Custom repositories**
 2. Add repository: `https://github.com/prsws/pepa-sensory-arm`
 3. Category: **Integration**
 4. Click **Add**

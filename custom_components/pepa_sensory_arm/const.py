@@ -5,7 +5,7 @@ from typing import Final
 # Domain and component info
 DOMAIN: Final = "pepa_sensory_arm"
 DEFAULT_NAME: Final = "Pepa Sensory Arm"
-VERSION: Final = "0.1.0"
+VERSION: Final = "0.1.0-alpha"
 
 # Configuration keys - LLM Configuration
 CONF_LLM_BASE_URL: Final = "llm_base_url"
@@ -182,7 +182,7 @@ DEFAULT_RETRY_JITTER: Final = True  # add random jitter to prevent thundering he
 
 # Default values - Context Injection
 DEFAULT_CONTEXT_MODE: Final = CONTEXT_MODE_DIRECT
-DEFAULT_CONTEXT_FORMAT: Final = CONTEXT_FORMAT_JSON
+DEFAULT_CONTEXT_FORMAT: Final = CONTEXT_FORMAT_NATURAL_LANGUAGE
 
 # Default values - Vector DB
 DEFAULT_VECTOR_DB_HOST: Final = "localhost"
@@ -217,7 +217,7 @@ DEFAULT_EMBEDDING_KEEP_ALIVE: Final = "5m"
 DEFAULT_CHROMA_PLACEMENT: Final = CHROMA_PLACEMENT_EMBEDDED
 
 # Persist directory for embedded placement, relative to hass.config.path()
-DEFAULT_CHROMA_PERSIST_DIR: Final = "pepa_chroma"
+DEFAULT_CHROMA_PERSIST_DIR: Final = "pepa_chroma_data"
 
 # Seconds before the client factory's cached availability flag is considered
 # stale and re-probed. See MemoryCapabilities.vector_recall for the

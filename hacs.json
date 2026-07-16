@@ -1,6 +1,8 @@
 {
   "name": "Pepa Sensory Arm",
+  "description": "Sensory Arm agent for Pepa, the cognitive AI assistant for seniors. Visit AI4Aging.org for more details.",
   "content_in_root": false,
   "render_readme": true,
-  "homeassistant": "2025.11.0"
+  "homeassistant": "2026.6.0",
+  "country": "PR"
 }
