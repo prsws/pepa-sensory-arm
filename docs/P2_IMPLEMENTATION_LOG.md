@@ -179,6 +179,32 @@ One test was found asserting on a phantom: `test_chromadb_failure_graceful_degra
 
 Verified: unit 1540, offline integration 268 (baseline), live-service collect 14, zero new mypy errors, AC#4 and both AC#6 scans green.
 
+---
+
+## 2026-07-16 — Commit 6 landed: conformance suite and docs
+
+`tests/unit/test_memory_interface_conformance.py` is written against the contract and parametrized by backend. Adding the Memory Arm backend means adding a fixture to `backend` and nothing else. If a conformance test ever needs a per-backend special case, the contract is wrong, not the test.
+
+`docs/MEMORY_INTERFACE.md` carries the vocabulary, the interim backend's honest noes, the `vector_recall` staleness bound verbatim, the placement ladder, the namespaced-cache rationale with its P6 pointer, and the layered-enforcement explanation. README is untouched — it does not name `MemoryManager` publicly, so spec §7's condition does not fire.
+
+### The conformance suite found a real bug on its first run
+
+`_derive_trust` consulted `metadata["extraction_method"]` **before** provenance. `add_memory()` defaults `extraction_method` to `"manual"` for any write that does not set one (`memory_manager.py:343`), so every `write(source="behavioral")` came back with **trust 1.0** — Pepa believing its own inferences exactly as firmly as the resident's own words. That is the false-memory failure class the trust axis exists to prevent, reintroduced by the very code meant to express it.
+
+Fixed by ordering: explicit provenance decides, and the `extraction_method` heuristic is consulted only for legacy rows written before the contract, which carry no source. Pinned by `test_inferred_writes_are_not_fully_trusted`.
+
+Worth recording as more than a bug — it is the argument for the conformance suite existing. Every other test in the repo passed with it in place, including the ones written for `_to_record` in commit 3. Only a test written against *what the contract promises*, rather than against what the code does, caught it.
+
+### The conformance fixture is store-only, deliberately
+
+It constructs the interim backend with `chroma_factory=None`, so `recall()` exercises the real keyword-fallback path. Mocking ChromaDB would mean asserting against a fake collection that answers every query with whatever the mock was told to say — testing the mock, not the contract. The degraded path is also the one that matters at 3 AM with the network down, and the contract has to hold there. Vector-backed recall is covered against a real ChromaDB in `tests/integration/test_memory_vectordb_integration.py`.
+
+---
+
+## 2026-07-16 — Open discrepancy: Chroma placement default
+
+*(Heading restored: an earlier edit in this session accidentally absorbed it, orphaning this section's body under the commits 4/5 entry. Content below is unchanged from when it was first written.)*
+
 Ledger §2.2 states Chroma placement defaults to `embedded` ("zero-infrastructure for public HACS users"), optional `remote`. Spec §4.1 states `DEFAULT_CHROMA_PLACEMENT = CHROMA_PLACEMENT_REMOTE`, with the embedded flip gated on P6's in-VM benchmark, and §2 routes the flip out of scope.
 
 Implementation follows the spec (`remote`): it is newer, declares itself sole authority, and its caution is corroborated by Ledger §4, which records that the in-VM ground-truth run of the sizing harness is still pending. The measured figures in §4 (~222 MB RSS at ~5,000 vectors, ~485 MB at 50,000) were taken outside the 4 GB HAOS VM, so they do not yet discharge the §3 invariant.

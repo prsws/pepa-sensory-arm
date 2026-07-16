@@ -1060,10 +1060,21 @@ class MemoryManager:
         Distinct from importance, which measures salience and lives in metadata.
         A user-stated fact is fully trusted; anything inferred sits at 0.5 until
         a backend with trust dynamics can move it.
+
+        Provenance decides, and the extraction_method heuristic is only consulted
+        when provenance is absent. The order matters: add_memory() defaults
+        extraction_method to "manual" for any write that does not set it, so
+        reading the heuristic first would hand full trust to every behavioral
+        inference that came through write(). Pepa would believe its own guesses
+        as firmly as the resident's own words.
         """
-        if (memory.get("metadata") or {}).get("extraction_method") == "manual":
-            return 1.0
         if source == "explicit_user":
+            return 1.0
+        if (memory.get("metadata") or {}).get("source") in ("behavioral", "measured"):
+            return 0.5
+        # Legacy rows written before the contract carry no source; fall back to
+        # how they were extracted.
+        if (memory.get("metadata") or {}).get("extraction_method") == "manual":
             return 1.0
         return 0.5
 
