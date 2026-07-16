@@ -41,6 +41,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_MEMORY_EXTRACTION_ENABLED,
     CONF_MEMORY_EXTRACTION_LLM,
     CONF_OPENAI_API_KEY,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_VECTOR_DB_COLLECTION,
     CONF_VECTOR_DB_EMBEDDING_BASE_URL,
     CONF_VECTOR_DB_EMBEDDING_MODEL,
@@ -91,6 +92,7 @@ async def test_proxy_headers_sent(
         CONF_LLM_MAX_TOKENS: 500,
         CONF_LLM_PROXY_HEADERS: {"X-Ollama-Backend": header_value},
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -179,6 +181,7 @@ async def test_no_proxy_headers_no_custom_header(
         CONF_LLM_MAX_TOKENS: 500,
         CONF_LLM_PROXY_HEADERS: {},
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -271,6 +274,7 @@ async def test_llm_temperature_in_payload(
         CONF_LLM_TEMPERATURE: temperature_value,  # The value we're testing
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -339,6 +343,7 @@ async def test_llm_max_tokens_in_payload(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: max_tokens_value,  # The value we're testing
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -410,6 +415,7 @@ async def test_llm_keep_alive_in_payload(
         CONF_LLM_MAX_TOKENS: 500,
         CONF_LLM_KEEP_ALIVE: keep_alive_value,  # The value we're testing
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -478,6 +484,7 @@ async def test_llm_top_p_in_payload(
         CONF_LLM_MAX_TOKENS: 500,
         CONF_LLM_TOP_P: top_p_value,  # The value we're testing
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -546,6 +553,7 @@ async def test_llm_payload_all_parameters_together(
         CONF_LLM_TOP_P: 0.85,  # Non-default value
         CONF_LLM_KEEP_ALIVE: "15m",  # Non-default value
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -642,6 +650,7 @@ async def test_llm_streaming_payload_parameters(
         CONF_LLM_KEEP_ALIVE: "20m",
         CONF_STREAMING_ENABLED: True,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_HISTORY_ENABLED: False,
         CONF_EMIT_EVENTS: False,
     }
@@ -758,6 +767,7 @@ async def test_context_format_variations(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room", "sensor.temperature"],
         CONF_CONTEXT_FORMAT: format_value,
         CONF_HISTORY_ENABLED: False,
@@ -842,6 +852,7 @@ async def test_context_format_json_baseline(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room", "sensor.temperature"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1157,6 +1168,7 @@ async def test_memory_extraction_llm_local(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1244,6 +1256,7 @@ async def test_memory_extraction_llm_external(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1364,6 +1377,7 @@ async def test_multiple_alternative_configs_together(
         CONF_LLM_PROXY_HEADERS: {"X-Ollama-Backend": "llama-cpp"},  # Custom proxy header
         # Context config with alternative format
         CONF_CONTEXT_MODE: CONTEXT_MODE_VECTOR_DB,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_NATURAL_LANGUAGE,  # Alternative format
         # Vector DB config with alternative provider
         CONF_VECTOR_DB_ENABLED: True,
@@ -1395,7 +1409,8 @@ async def test_multiple_alternative_configs_together(
 
         # Mock ChromaDB client to avoid needing real ChromaDB
         with patch(
-            "custom_components.pepa_sensory_arm.context_providers.vector_db.chromadb.HttpClient"
+            "custom_components.pepa_sensory_arm.context_providers._vector_common"
+            ".chromadb.HttpClient"
         ) as mock_chromadb:
             mock_collection = MagicMock()
             mock_collection.query.return_value = {
@@ -1459,6 +1474,7 @@ async def test_events_fire_when_enabled(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1572,6 +1588,7 @@ async def test_events_do_not_fire_when_disabled(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1668,6 +1685,7 @@ async def test_emit_events_runtime_check_in_tool_handler(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1760,6 +1778,7 @@ async def test_emit_events_dynamic_change(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
@@ -1906,6 +1925,7 @@ async def test_memory_extraction_event_respects_emit_events(
         CONF_LLM_TEMPERATURE: 0.7,
         CONF_LLM_MAX_TOKENS: 500,
         CONF_CONTEXT_MODE: CONTEXT_MODE_DIRECT,
+        CONF_PROMPT_USE_DEFAULT: False,
         CONF_DIRECT_ENTITIES: ["light.living_room"],
         CONF_CONTEXT_FORMAT: CONTEXT_FORMAT_JSON,
         CONF_HISTORY_ENABLED: False,
