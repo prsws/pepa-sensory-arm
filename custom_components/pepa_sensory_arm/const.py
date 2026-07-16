@@ -48,6 +48,10 @@ CONF_VECTOR_DB_EMBEDDING_PROVIDER: Final = "vector_db_embedding_provider"
 CONF_VECTOR_DB_EMBEDDING_BASE_URL: Final = "vector_db_embedding_base_url"
 CONF_OPENAI_API_KEY: Final = "openai_api_key"
 
+# Config entry schema version. Bumped to 2 when ChromaDB placement became
+# configurable and the default became embedded; see async_migrate_entry.
+CONFIG_ENTRY_VERSION: Final = 2
+
 # Configuration keys - ChromaDB client placement (see chroma_factory.py)
 CONF_CHROMA_PLACEMENT: Final = "chroma_placement"
 CONF_CHROMA_PERSIST_DIR: Final = "chroma_persist_dir"
@@ -193,14 +197,24 @@ DEFAULT_EMBEDDING_KEEP_ALIVE: Final = "5m"
 
 # Default values - ChromaDB placement
 #
-# Default is REMOTE, deliberately. The Design Ledger §2.2 records embedded as the
-# intended default (zero-infrastructure for public HACS users), and that remains
-# the destination -- but the flip is gated on the P6 in-VM benchmark. The measured
-# embedded footprint on record (~222 MB RSS at ~5k vectors, ~485 MB at 50k) was
-# taken outside the 4 GB HAOS VM, so it does not yet discharge the hard invariant
-# that the VM never grows. Shipping embedded-by-default before that run would be
-# betting the VM on an unmeasured number.
-DEFAULT_CHROMA_PLACEMENT: Final = CHROMA_PLACEMENT_REMOTE
+# Default is EMBEDDED, per Design Ledger §2.2: a fresh install should work with
+# zero infrastructure. A remote default is broken out of the box for anyone who
+# has not stood up a ChromaDB server -- it points at a localhost:8000 that isn't
+# there.
+#
+# This does NOT put the 4 GB HAOS VM (Ledger §3) at risk, because that invariant
+# is protected by configuration rather than by this default: every config entry
+# that predates the placement option is pinned to `remote` by async_migrate_entry
+# (see __init__.py), and mmm4 -- the constrained host -- is one of them. Only new
+# installs land on embedded.
+#
+# The P6 in-VM benchmark still matters, but it is no longer gating this constant:
+# it measures whether embedded is viable *inside* the constrained VM, which is a
+# question about moving mmm4 onto embedded, not about what a fresh install does.
+# Note what the benchmark is for -- the loud-failure ladder in chroma_factory
+# catches import and init failure, but nothing catches a store that grows to
+# ~485 MB over twenty years. That is not an exception, it is just RAM.
+DEFAULT_CHROMA_PLACEMENT: Final = CHROMA_PLACEMENT_EMBEDDED
 
 # Persist directory for embedded placement, relative to hass.config.path()
 DEFAULT_CHROMA_PERSIST_DIR: Final = "pepa_chroma"

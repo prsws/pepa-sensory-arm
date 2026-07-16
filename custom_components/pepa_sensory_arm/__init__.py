@@ -18,6 +18,8 @@ from homeassistant.helpers.typing import ConfigType
 from .agent import PepaSensoryArm
 from .chroma_factory import ChromaClientFactory
 from .const import (
+    CHROMA_PLACEMENT_REMOTE,
+    CONF_CHROMA_PLACEMENT,
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
     CONF_PROMPT_USE_DEFAULT,
@@ -26,6 +28,7 @@ from .const import (
     CONF_TOOLS_CUSTOM,
     CONF_VECTOR_DB_EMBEDDING_BASE_URL,
     CONF_VECTOR_DB_EMBEDDING_PROVIDER,
+    CONFIG_ENTRY_VERSION,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_MEMORY_ENABLED,
     DEFAULT_PROMPT_USE_DEFAULT,
@@ -59,6 +62,47 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if DOMAIN in config:
         hass.data[DOMAIN]["yaml_config"] = config[DOMAIN]
         _LOGGER.info("Loaded Pepa Sensory Arm YAML configuration")
+
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Migrate a config entry to the current version.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry to migrate
+
+    Returns:
+        True if the migration succeeded
+    """
+    _LOGGER.debug("Migrating config entry %s from version %s", entry.entry_id, entry.version)
+
+    if entry.version > CONFIG_ENTRY_VERSION:
+        # Downgrade: this entry was written by a newer version of the component.
+        return False
+
+    if entry.version == 1:
+        # Version 2 introduces configurable ChromaDB placement, defaulting to
+        # embedded so a fresh install needs no infrastructure.
+        #
+        # Every version 1 entry ran remote -- HttpClient was the only behavior
+        # there was. Pin that explicitly rather than letting them inherit the new
+        # default, which would silently relocate an existing install's vector
+        # store into the Home Assistant VM on upgrade. On the constrained mmm4
+        # host that VM is frozen at 4 GB (Ledger §3), and the embedded footprint
+        # in-VM is still unmeasured (P6). Nobody's memory system should change
+        # where it lives because they installed an update.
+        new_data = {**entry.data}
+        new_data.setdefault(CONF_CHROMA_PLACEMENT, CHROMA_PLACEMENT_REMOTE)
+        hass.config_entries.async_update_entry(entry, data=new_data, version=2)
+        _LOGGER.info(
+            "Migrated config entry %s to version 2: pinned ChromaDB placement to "
+            "'%s' to preserve existing behavior. Change it in the Vector Database "
+            "settings if you want the embedded store.",
+            entry.entry_id,
+            CHROMA_PLACEMENT_REMOTE,
+        )
 
     return True
 

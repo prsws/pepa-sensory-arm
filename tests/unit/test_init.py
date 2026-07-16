@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from custom_components.pepa_sensory_arm import (
+    async_migrate_entry,
     async_reload_entry,
     async_remove_services,
     async_setup,
@@ -15,7 +16,9 @@ from custom_components.pepa_sensory_arm import (
     async_unload_entry,
 )
 from custom_components.pepa_sensory_arm.const import (
+    CHROMA_PLACEMENT_EMBEDDED,
     CHROMA_PLACEMENT_REMOTE,
+    CONF_CHROMA_PLACEMENT,
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
     CONF_TOOLS_CUSTOM,
@@ -1442,3 +1445,65 @@ class TestServiceErrorHandling:
 
         with pytest.raises(Exception, match="Index error"):
             await reindex_handler(service_call)
+
+
+class TestConfigEntryMigration:
+    """Test async_migrate_entry.
+
+    Version 2 made ChromaDB placement configurable and defaulted it to embedded.
+    Every version 1 entry ran remote, because HttpClient was the only behavior
+    there was. The migration pins that explicitly so an upgrade never silently
+    relocates a running install's vector store into the Home Assistant VM.
+    """
+
+    async def test_v1_entry_is_pinned_to_remote(self, mock_hass, mock_config_entry):
+        """A version 1 entry keeps the behavior it already had."""
+        mock_config_entry.version = 1
+        mock_config_entry.data = {"llm_model": "gemma4:e4b"}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        mock_hass.config_entries.async_update_entry.assert_called_once()
+        kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+        assert kwargs["version"] == 2
+        assert kwargs["data"][CONF_CHROMA_PLACEMENT] == CHROMA_PLACEMENT_REMOTE
+        # Existing configuration survives the migration untouched.
+        assert kwargs["data"]["llm_model"] == "gemma4:e4b"
+
+    async def test_migration_does_not_override_an_explicit_placement(
+        self, mock_hass, mock_config_entry
+    ):
+        """A placement the user already chose is not overwritten."""
+        mock_config_entry.version = 1
+        mock_config_entry.data = {CONF_CHROMA_PLACEMENT: CHROMA_PLACEMENT_EMBEDDED}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        kwargs = mock_hass.config_entries.async_update_entry.call_args[1]
+        assert kwargs["data"][CONF_CHROMA_PLACEMENT] == CHROMA_PLACEMENT_EMBEDDED
+
+    async def test_current_version_entry_is_left_alone(self, mock_hass, mock_config_entry):
+        """An entry already at the current version needs no migration."""
+        mock_config_entry.version = 2
+        mock_config_entry.data = {}
+        mock_hass.config_entries.async_update_entry = MagicMock()
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is True
+        mock_hass.config_entries.async_update_entry.assert_not_called()
+
+    async def test_future_version_entry_fails_rather_than_guessing(
+        self, mock_hass, mock_config_entry
+    ):
+        """A downgrade is refused: we cannot know what a newer schema meant."""
+        mock_config_entry.version = 99
+        mock_config_entry.data = {}
+
+        result = await async_migrate_entry(mock_hass, mock_config_entry)
+
+        assert result is False

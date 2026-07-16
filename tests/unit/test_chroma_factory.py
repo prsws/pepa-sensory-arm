@@ -96,13 +96,15 @@ def mock_issue_registry():
 # ---- Placement selection ------------------------------------------------
 
 
-def test_placement_defaults_to_remote(mock_hass):
-    """With no placement configured, the factory is remote.
+def test_placement_defaults_to_embedded(mock_hass):
+    """With no placement configured, the factory is embedded.
 
-    The embedded-default flip is gated on the P6 in-VM benchmark.
+    A fresh install should work with zero infrastructure (Ledger §2.2). Existing
+    installs never reach this default -- async_migrate_entry pins them to remote
+    explicitly, so an upgrade never relocates a running store.
     """
     factory = ChromaClientFactory(mock_hass, {})
-    assert factory.placement == CHROMA_PLACEMENT_REMOTE
+    assert factory.placement == CHROMA_PLACEMENT_EMBEDDED
 
 
 def test_placement_reads_config(mock_hass, embedded_config):

@@ -74,16 +74,24 @@ Why this matters: the previous code set `_chromadb_available` once in `async_ini
 
 ## Client factory and placement
 
-`ChromaClientFactory` is the only place a ChromaDB client is constructed. Both `VectorDBManager` and `MemoryManager` consume from it. This is what killed the **borrowed-client bug**, where memory parasitized the vector manager's client and setting Context Mode to Direct silently killed memory vector search, sync, and dedup.
+`ChromaClientFactory` is the only place **`VectorDBManager` and `MemoryManager`** get a ChromaDB client. This is what killed the **borrowed-client bug**, where memory parasitized the vector manager's client and setting Context Mode to Direct silently killed memory vector search, sync, and dedup.
+
+> **Known gap, stated plainly.** Spec AC#3 asks for the factory to be the only place a client is constructed *anywhere*, and that is not yet true: `context_providers/_vector_common.py` still builds its own `HttpClient` and carries its own embedding cache and provider stack, serving `vector_db.py` and `retrieval.py`. It predates P2 (it arrived with P1's `RetrievalContextProvider` extraction) and migrating it was never in P2's scope — §2 scopes the factory to two consumers, while AC#3 demands global uniqueness, and both cannot hold at once. Consequence worth knowing: an install currently runs **three** 1000-vector embedding caches, not two. Unresolved; routed for a decision.
 
 Placement is configuration, never a heuristic — a memory system that silently relocates its store based on runtime conditions is one nobody can reason about.
 
 | Placement | Client | Status |
 |---|---|---|
-| `remote` | `HttpClient` against a ChromaDB server | **Default** |
-| `embedded` | `PersistentClient`, in-VM, no external service | Implemented, default-off |
+| `embedded` | `PersistentClient`, in-VM, no external service | **Default** (new installs) |
+| `remote` | `HttpClient` against a ChromaDB server | Pinned on every pre-existing install |
 
-**Why the default is `remote` when Ledger §2.2 says `embedded`:** the flip is gated on the **P6** in-VM benchmark. The measured embedded footprint on record (~222 MB RSS at ~5k vectors, ~485 MB at 50k) was taken *outside* the 4 GB HAOS VM, and Ledger §4 records that the in-VM ground-truth run is still pending. Shipping embedded-by-default before that run would bet the VM on an unmeasured number. Resolution belongs to P6, not P2.
+**The default is `embedded`** per Ledger §2.2: a fresh install should work with zero infrastructure. A `remote` default is broken out of the box for anyone who has not stood up a ChromaDB server — it points at a `localhost:8000` that isn't there.
+
+**Existing installs never reach that default.** `async_migrate_entry` (config entry v1 → v2) writes `chroma_placement: remote` onto every entry that predates the option. Every v1 entry ran remote — `HttpClient` was the only behavior there was — so the migration preserves it explicitly. Nobody's memory system changes where it lives because they installed an update.
+
+That is also what protects the 4 GB HAOS VM (Ledger §3): the invariant is held by *configuration*, not by a default. mmm4, the constrained host, is a migrated entry and stays remote.
+
+**On the P6 benchmark:** it no longer gates this default, but it has not stopped mattering. It measures whether embedded is viable *inside* the constrained VM — i.e. whether mmm4 could ever move onto embedded — which is a different question from what a fresh install does. Note precisely what it is for: the loud-failure ladder below catches import and init failure, but nothing catches a store that grows to ~485 MB over twenty years. That is not an exception to handle, it is just RAM. Retuning or relocating on the constrained host stays P6's call.
 
 **The loud-failure ladder** when embedded placement cannot start:
 

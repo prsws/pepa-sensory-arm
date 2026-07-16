@@ -201,6 +201,36 @@ It constructs the interim backend with `chroma_factory=None`, so `recall()` exer
 
 ---
 
+## 2026-07-16 — Amendment 3: the Chroma placement default is `embedded`, and the P6 gate was aimed wrong
+
+**Supersedes:** spec §4.1's `DEFAULT_CHROMA_PLACEMENT = CHROMA_PLACEMENT_REMOTE`, spec §2's routing of the flip to P6, and this log's "Open discrepancy: Chroma placement default" entry below, which recorded the tension without resolving it.
+
+**Decided (José, 2026-07-16):** the default is `embedded`. This is José overriding his own spec in favor of Ledger §2.2, which he is entitled to do; recorded here so the code and the spec do not silently disagree.
+
+### Why the gate dissolved rather than being overridden
+
+The P6 gate existed to protect the 4 GB HAOS VM (Ledger §3) from an embedded footprint measured outside that VM. But that invariant is **Casa Delta's constraint, not a property of every install** — and the Ledger's own rationale for embedded-by-default is "zero-infrastructure for public HACS users", for whom a `remote` default is simply broken on first run.
+
+So the gate was aimed at the wrong target. Pinning the constrained host to `remote` **explicitly** protects the invariant directly, by configuration rather than by a default, and P6 is freed to measure the question it should have been measuring: whether embedded is viable in-VM if mmm4 ever wants to move there.
+
+### What made this more than a one-line change
+
+Placement resolves as `config.get(CONF_CHROMA_PLACEMENT, DEFAULT_CHROMA_PLACEMENT)`, and the option only came into existence in commit 2a. No existing entry has the key. Flipping the constant alone would have silently relocated every current install's vector store into the HA VM on upgrade — including Casa Delta's.
+
+The data half of that is survivable by design (Ledger §2.2: ChromaDB is "working memory — disposable, rebuildable"; `_sync_to_chromadb` repopulates from the HA Store). The RAM half is not survivable by assertion.
+
+**Resolved:** `async_migrate_entry`, config entry `VERSION` 1 → 2 (`CONFIG_ENTRY_VERSION` in const.py is the single source of truth, shared by the flow and the migration). v1 entries get `chroma_placement: remote` written into `entry.data`, using `setdefault` so an explicit choice is never overwritten. Written to `data` rather than `options` so a later options-flow choice still wins.
+
+A downgrade (`entry.version > CONFIG_ENTRY_VERSION`) returns False rather than guessing what a newer schema meant.
+
+### What this does not fix
+
+The loud-failure ladder catches import and init failure. It does not — and cannot — catch a store that grows to ~485 MB over twenty years inside a 4 GB VM. That failure has no exception to raise. It remains P6's question, now for the right reason.
+
+Also still open: `_vector_common.py` carries a third ChromaDB client construction site and a third embedding cache (see the AC#3 audit). A default-embedded install therefore runs three 1000-vector caches alongside an in-VM Chroma process. Unresolved, and worth knowing before P6 measures anything.
+
+---
+
 ## 2026-07-16 — Open discrepancy: Chroma placement default
 
 *(Heading restored: an earlier edit in this session accidentally absorbed it, orphaning this section's body under the commits 4/5 entry. Content below is unchanged from when it was first written.)*
