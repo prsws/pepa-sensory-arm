@@ -818,6 +818,6 @@ Your immediate area is: {{ area_name(area_id(current_device_id)) | default('unsp
 Time: {{ now() }}
 
 ## Retrieved Context (memories and related information)
-{{ entity_context }}"""
+{{ conversation_context }}"""
 
 PROMPT_TRAILER: Final = "Now respond to the user's request:"

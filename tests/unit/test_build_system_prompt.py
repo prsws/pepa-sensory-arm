@@ -229,3 +229,74 @@ class TestTrailerNotInPromptConstants:
         )
         source = const_path.read_text()
         assert "DEFAULT_SYSTEM_PROMPT" not in source
+
+
+class TestConversationContextTemplateVar:
+    """conversation_context is the template variable; entity_context is a deprecated alias."""
+
+    def test_conversation_context_and_alias_render_identically(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = False
+        agent.config[CONF_PROMPT_CUSTOM] = "A:{{ conversation_context }}|B:{{ entity_context }}"
+
+        result = agent._build_system_prompt(conversation_context="THE CONTEXT")
+
+        assert result == "A:THE CONTEXT|B:THE CONTEXT"
+
+    def test_default_tail_renders_context_under_retrieved_context_heading(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = True
+        agent.config[CONF_PROMPT_USE_CUSTOM] = False
+
+        result = agent._build_system_prompt(conversation_context="MEMORY AND RETRIEVAL BLOB")
+
+        heading_idx = result.find("## Retrieved Context (memories and related information)")
+        context_idx = result.find("MEMORY AND RETRIEVAL BLOB")
+        trailer_idx = result.find(PROMPT_TRAILER)
+        assert -1 not in (heading_idx, context_idx, trailer_idx)
+        assert heading_idx < context_idx < trailer_idx
+
+    def test_default_tail_no_longer_references_entity_context(self):
+        """Regression guard: the TAIL uses conversation_context, not entity_context."""
+        assert "{{ entity_context }}" not in DEFAULT_PROMPT_TAIL
+        assert "{{ conversation_context }}" in DEFAULT_PROMPT_TAIL
+
+    def test_entity_context_sensor_reference_untouched(self):
+        """The pyscript sensor name is not affected by the template-var rename."""
+        assert "sensor.pepa_entity_context" in DEFAULT_PROMPT_TAIL
+
+
+class TestExposedEntitiesGating:
+    """get_exposed_entities only runs when the assembled prompt references it."""
+
+    def test_default_prompt_skips_exposed_entities(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = True
+        agent.config[CONF_PROMPT_USE_CUSTOM] = False
+
+        agent._build_system_prompt(conversation_context="ctx")
+
+        agent.get_exposed_entities.assert_not_called()
+
+    def test_replacement_prompt_without_reference_skips_exposed_entities(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = False
+        agent.config[CONF_PROMPT_CUSTOM] = "No entity var here: {{ conversation_context }}"
+
+        agent._build_system_prompt(conversation_context="ctx")
+
+        agent.get_exposed_entities.assert_not_called()
+
+    def test_replacement_prompt_with_reference_computes_exposed_entities(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = False
+        agent.config[CONF_PROMPT_CUSTOM] = "Devices: {{ exposed_entities }}"
+
+        result = agent._build_system_prompt(conversation_context="ctx")
+
+        agent.get_exposed_entities.assert_called_once()
+        assert result == "Devices: []"
+
+    def test_additions_referencing_exposed_entities_compute_it(self, agent):
+        agent.config[CONF_PROMPT_USE_DEFAULT] = True
+        agent.config[CONF_PROMPT_USE_CUSTOM] = True
+        agent.config[CONF_PROMPT_CUSTOM_ADDITIONS] = "Extra: {{ exposed_entities }}"
+
+        agent._build_system_prompt(conversation_context="ctx")
+
+        agent.get_exposed_entities.assert_called_once()
