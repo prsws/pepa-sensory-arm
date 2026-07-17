@@ -1,3 +1,5 @@
+# Managed by Pepa Sensory Arm — updates overwrite this file; fork the repo to customize.
+#
 # entities_list.py
 # Inject-ready entity context for the Pepa sensory arm.
 #

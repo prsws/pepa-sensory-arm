@@ -1,3 +1,5 @@
+# Managed by Pepa Sensory Arm — updates overwrite this file; fork the repo to customize.
+#
 # entity_context.py
 # CSV entity context for the Pepa sensory arm (Home Agent LLM).
 # Filters to HA-exposed entities only (replaces the old llm_conversation_context label).

@@ -447,6 +447,17 @@
     "chroma_embedded_failed": {
       "title": "Embedded ChromaDB failed to start",
       "description": "Embedded ChromaDB could not start at {path}: {error}\n\nIf a ChromaDB host and port are configured, Pepa has fallen back to remote placement. Otherwise memory and vector search are running without semantic recall. Check that the persist directory is writable and that the chromadb package is installed."
+    },
+    "pyscript_payload_missing": {
+      "title": "Pepa perception scripts are not installed",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Install the Pepa perception scripts",
+            "description": "Pepa Sensory Arm reads its device catalog from a sensor published by bundled pyscript scripts that are not yet deployed on this system.\n\nSubmitting will copy {payload_files} into {pyscript_dir}, overwriting any existing files with those names. Future upgrades of Pepa Sensory Arm will silently overwrite these files again — fork the repository if you need to customize them.\n\nThe Pyscript integration must be installed, and all three of its configuration checkboxes must be enabled — including 'hass is global' — or the scripts will not load."
+          }
+        }
+      }
     }
   }
 }
