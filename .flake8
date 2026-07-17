@@ -11,4 +11,4 @@ per-file-ignores =
     custom_components/pepa_sensory_arm/const.py:E501
     # pyscript injects hass/log/state/service and the trigger decorators as
     # runtime globals; flake8 can't see them statically.
-    custom_components/pyscript/*.py:F821
+    custom_components/pepa_sensory_arm/pyscripts/*.py:F821
