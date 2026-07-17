@@ -21,6 +21,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_CHROMA_PLACEMENT,
     CONF_CONTEXT_MODE,
     CONF_MEMORY_ENABLED,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_TOOLS_CUSTOM,
     CONTEXT_MODE_VECTOR_DB,
     DEFAULT_MEMORY_ENABLED,
@@ -78,6 +79,10 @@ def mock_config_entry():
         "llm_base_url": "https://api.openai.com/v1",
         "llm_api_key": "test-key",
         "llm_model": "gpt-4o-mini",
+        # These tests cover setup wiring, not the pyscript deployment gate;
+        # opting out of the default prompt keeps the gate inert here. The gate
+        # has its own coverage in test_pyscript_deploy.py.
+        CONF_PROMPT_USE_DEFAULT: False,
     }
     entry.options = {}
     entry.add_update_listener = MagicMock(return_value=lambda: None)
