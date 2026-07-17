@@ -260,7 +260,7 @@ class TestConversationContextTemplateVar:
         assert "{{ conversation_context }}" in DEFAULT_PROMPT_TAIL
 
     def test_entity_context_sensor_reference_untouched(self):
-        """The pyscript sensor name is not affected by the template-var rename."""
+        """The pyscripts sensor name is not affected by the template-var rename."""
         assert "sensor.pepa_entity_context" in DEFAULT_PROMPT_TAIL
 
 

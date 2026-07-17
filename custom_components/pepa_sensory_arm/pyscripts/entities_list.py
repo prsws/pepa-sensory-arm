@@ -11,10 +11,10 @@
 # they stay rendered live in the system prompt so status reads are never stale.
 #
 # Supersedes entity_context.py functionally. entity_context.py is kept as-is for
-# reference; all names here are distinct so the two files coexist in pyscript/.
+# reference; all names here are distinct so the two files coexist in pyscripts/.
 #
-# Deploy  : <config>/pyscript/entities_list.py
-# Service : pyscript.entities_list   (manual call; "Return response" -> {csv, count})
+# Deploy  : <config>/pyscripts/entities_list.py
+# Service : pyscripts.entities_list   (manual call; "Return response" -> {csv, count})
 # Sensor  : sensor.pepa_entity_context
 #             state           = entity count
 #             attribute 'csv'  = static CSV string (header included)
@@ -187,7 +187,7 @@ def _el_on_registry(**kwargs):
 
 
 # Backstop for expose-toggle changes, which don't always emit a registry event.
-# period() syntax can vary by pyscript version; adjust the interval if needed.
+# period() syntax can vary by pyscripts version; adjust the interval if needed.
 @time_trigger("period(00:00, 10min)")
 def _el_periodic():
     _el_publish()

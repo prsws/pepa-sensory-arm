@@ -44,7 +44,7 @@ def mock_hass():
     # Mock config.config_dir for ConversationSessionManager storage
     hass.config = MagicMock()
     hass.config.config_dir = "/tmp/test_config"
-    # Mock states.get for the default-prompt pyscript sensor startup check
+    # Mock states.get for the default-prompt pyscripts sensor startup check
     hass.states = MagicMock()
     hass.states.get = MagicMock(return_value=None)
     return hass

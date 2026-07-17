@@ -123,16 +123,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config = dict(entry.data) | dict(entry.options)
 
     # The default system prompt's device tables read sensor.pepa_entity_context,
-    # published by the bundled pyscript (custom_components/pyscript/entities_list.py,
+    # published by the bundled pyscripts (custom_components/pyscripts/entities_list.py,
     # entity_context.py). There is no fallback to exposed_entities - warn if it's
     # missing so the integration doesn't silently send an empty device catalog.
     if config.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT):
         entity_context_state = hass.states.get("sensor.pepa_entity_context")
         if entity_context_state is None or not entity_context_state.attributes.get("csv"):
             _LOGGER.warning(
-                "The default system prompt requires the bundled pyscript "
+                "The default system prompt requires the bundled pyscripts "
                 "entity-context sensor (sensor.pepa_entity_context), which is "
-                "missing or has no data. Install/enable the pyscript integration "
+                "missing or has no data. Install/enable the pyscripts integration "
                 "with the bundled scripts, or the device catalog in the system "
                 "prompt will be empty. See the documentation for setup details."
             )

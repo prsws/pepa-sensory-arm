@@ -14,7 +14,7 @@
 # Bonus: resolution_s (processing -> responding) is a free per-interaction
 # latency metric. In testing, local fast-path ~0.2s vs LLM ~18s on the same host.
 #
-# Deploy: <config>/pyscript/pepa_behavioral_capture.py
+# Deploy: <config>/pyscripts/pepa_behavioral_capture.py
 
 import time
 

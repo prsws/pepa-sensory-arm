@@ -3,8 +3,8 @@
 # Filters to HA-exposed entities only (replaces the old llm_conversation_context label).
 # volatile flag derived from an HA label named "volatile".
 #
-# Deploy  : <config>/pyscript/entity_context.py
-# Trigger : pyscript.entity_context   (Developer Tools -> Actions, "Return response" on)
+# Deploy  : <config>/pyscripts/entity_context.py
+# Trigger : pyscripts.entity_context   (Developer Tools -> Actions, "Return response" on)
 #
 # Returns:
 #   csv     - CSV string ready for system-prompt injection

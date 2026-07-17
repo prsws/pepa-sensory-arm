@@ -836,7 +836,7 @@ DEFAULT_PROMPT_TAIL: Final = r"""## DEVICE CATALOG (resolve devices here first)
 ```
 {#- ============================================================
     CACHE BOUNDARY — everything above renders identically on
-    every turn until the entity registry changes (pyscript
+    every turn until the entity registry changes (pyscripts
     republish). Everything below re-renders per utterance.
     Do not add volatile template calls above this line.
     ============================================================ -#}
