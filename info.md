@@ -1,5 +1,7 @@
 # Pepa Sensory Arm (hass-agent-llm)
 
+Sensory Arm agent for Pepa, the cognitive AI assistant for seniors. Visit [AI4Aging.org](https://AI4Aging.org) for more details.
+
 A highly customizable Home Assistant custom component that extends the native conversation platform with intelligent conversational AI capabilities. Pepa Sensory Arm works with any OpenAI-compatible LLM provider, giving you the flexibility to use cloud services like OpenAI or run models locally with Ollama, enabling natural language control and monitoring of your smart home with advanced context awareness.
 
 ## Key Features
