@@ -1,9 +1,9 @@
 # Pepa Sensory Arm
 
-[![Version](https://img.shields.io/badge/version-0.9.5-blue.svg)](https://github.com/prsws/pepa-sensory-arm/releases)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/prsws/pepa-sensory-arm/releases)
 [![Build Status](https://github.com/prsws/pepa-sensory-arm/workflows/CI/badge.svg)](https://github.com/prsws/pepa-sensory-arm/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.3.1+-blue.svg)](https://www.home-assistant.io/)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.6+-blue.svg)](https://www.home-assistant.io/)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 
 A highly customizable Home Assistant custom component that performs as the sensory arm of the Pepa system.
@@ -356,5 +356,11 @@ Based on Home Agent by Anton Radlein. Built with inspiration from the extended_o
 
 ## Changelog
 
-### v0.9.5 (Latest)
+### v0.1.0 (Latest)
+- **New version numbering** - PAS is now independent and protected from automatic upstream changes. 
+- **Initial advanced context management** - Still alpha but a solid foundation for memory collection.
+- **Updated requirements and installation instructions** - Read them thoroughly.
+
+
+### v0.9.5 (from upstream)
 - **New Release**: Initial release as Pepa Sensory Arm
