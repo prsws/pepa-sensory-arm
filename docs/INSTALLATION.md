@@ -40,6 +40,29 @@ Note: Currently in development. Use manual installation below.
 
 4. **Restart Home Assistant** via Settings > System > Restart
 
+## Pyscript Perception Scripts
+
+Pepa Sensory Arm's default system prompt reads its device catalog from `sensor.pepa_entity_context`, which is published by three pyscript scripts bundled inside the integration: `entity_context.py`, `entities_list.py`, and `pepa_behavioral_capture.py`. The integration deploys and maintains these scripts itself.
+
+### Requirements
+
+1. Install the **Pyscript** integration (via HACS). Pepa Sensory Arm declares it as a hard dependency and will not start without it.
+2. In Pyscript's configuration, enable **all three checkboxes** — including **"hass is global"**. The scripts will not load without them.
+
+### First-time deployment (Repair flow)
+
+On a fresh install the bundled scripts are not yet in your `<config>/pyscript/` folder. Setup will pause and raise a fixable issue under **Settings > System > Repairs** titled "Pepa perception scripts are not installed". Clicking **Fix** and confirming copies the three scripts into `<config>/pyscript/` (creating the folder if needed). Pyscript auto-loads them, and Pepa Sensory Arm's setup retry then completes on its own — no restart required.
+
+If setup still reports the entity-context sensor as missing after the fix, check the three Pyscript configuration checkboxes above.
+
+### Upgrades overwrite the scripts
+
+On every startup, deployed scripts that differ from the bundled versions are silently overwritten with the shipped copies. There is no protection for local edits: if you need to customize these scripts, fork the repository instead of editing them in place.
+
+### Uninstall
+
+Removing the last Pepa Sensory Arm config entry deletes the three deployed scripts from `<config>/pyscript/`. Nothing else in that folder is touched.
+
 ## Initial Configuration
 
 ### Add the Integration

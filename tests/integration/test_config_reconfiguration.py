@@ -53,6 +53,7 @@ from custom_components.pepa_sensory_arm.const import (
     CONF_MEMORY_ENABLED,
     CONF_MEMORY_EXTRACTION_ENABLED,
     CONF_MEMORY_EXTRACTION_LLM,
+    CONF_PROMPT_USE_DEFAULT,
     CONF_SESSION_PERSISTENCE_ENABLED,
     CONF_SESSION_TIMEOUT,
     CONF_STREAMING_ENABLED,
@@ -122,6 +123,10 @@ def base_config_entry_options() -> dict[str, Any]:
         CONF_DEBUG_LOGGING: False,
         CONF_STREAMING_ENABLED: False,
         CONF_EMIT_EVENTS: False,
+        # These tests cover reconfiguration wiring, not the pyscript deployment
+        # gate; opting out of the default prompt keeps the gate inert here. The
+        # gate has its own coverage in tests/unit/test_pyscript_deploy.py.
+        CONF_PROMPT_USE_DEFAULT: False,
     }
 
 

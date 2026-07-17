@@ -1,3 +1,5 @@
+# Managed by Pepa Sensory Arm — updates overwrite this file; fork the repo to customize.
+#
 # pepa_behavioral_capture.py
 # Behavioral observation tap for the Pepa memory arm -- CAPTURE STAGE ONLY.
 #

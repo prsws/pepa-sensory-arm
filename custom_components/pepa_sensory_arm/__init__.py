@@ -13,8 +13,11 @@ from homeassistant.components import conversation as ha_conversation
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
+from . import pyscript_deploy
 from .agent import PepaSensoryArm
 from .chroma_factory import ChromaClientFactory
 from .const import (
@@ -123,19 +126,56 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config = dict(entry.data) | dict(entry.options)
 
     # The default system prompt's device tables read sensor.pepa_entity_context,
-    # published by the bundled pyscripts (custom_components/pyscripts/entities_list.py,
-    # entity_context.py). There is no fallback to exposed_entities - warn if it's
-    # missing so the integration doesn't silently send an empty device catalog.
+    # published by the bundled pyscript payload. There is no fallback to
+    # exposed_entities, so setup must not proceed with an empty device catalog:
+    # a missing payload raises a fixable Repair issue (the user's Fix click is
+    # the deployment consent), a stale one is overwritten silently (consent was
+    # given at first deploy), and either way the sensor must be live before
+    # setup completes.
     if config.get(CONF_PROMPT_USE_DEFAULT, DEFAULT_PROMPT_USE_DEFAULT):
+        target_dir = pyscript_deploy.pyscript_target_dir(hass)
+        state, pending = await hass.async_add_executor_job(
+            pyscript_deploy.check_deployment_sync, target_dir
+        )
+
+        if state is pyscript_deploy.DeploymentState.MISSING:
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                pyscript_deploy.ISSUE_PYSCRIPT_PAYLOAD_MISSING,
+                is_fixable=True,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key=pyscript_deploy.ISSUE_PYSCRIPT_PAYLOAD_MISSING,
+                translation_placeholders={
+                    "pyscript_dir": str(target_dir),
+                    "payload_files": ", ".join(pyscript_deploy.PAYLOAD_FILES),
+                },
+            )
+            raise ConfigEntryNotReady(
+                f"Bundled pyscript perception scripts are not deployed to {target_dir}. "
+                "Confirm the repair issue in Settings > System > Repairs to install them."
+            )
+
+        if state is pyscript_deploy.DeploymentState.STALE:
+            await hass.async_add_executor_job(
+                pyscript_deploy.deploy_payload_sync, target_dir, pending
+            )
+            _LOGGER.info(
+                "Updated bundled pyscript(s) in %s to the shipped version: %s",
+                target_dir,
+                ", ".join(pending),
+            )
+
         entity_context_state = hass.states.get("sensor.pepa_entity_context")
         if entity_context_state is None or not entity_context_state.attributes.get("csv"):
-            _LOGGER.warning(
-                "The default system prompt requires the bundled pyscripts "
-                "entity-context sensor (sensor.pepa_entity_context), which is "
-                "missing or has no data. Install/enable the pyscripts integration "
-                "with the bundled scripts, or the device catalog in the system "
-                "prompt will be empty. See the documentation for setup details."
+            raise ConfigEntryNotReady(
+                "sensor.pepa_entity_context is missing or has no data. The pyscript "
+                "integration may still be loading the deployed scripts, or not all "
+                "three of its configuration checkboxes (including 'hass is global') "
+                "are enabled."
             )
+
+        ir.async_delete_issue(hass, DOMAIN, pyscript_deploy.ISSUE_PYSCRIPT_PAYLOAD_MISSING)
 
     # Also merge YAML config for custom tools (if present)
     # This allows users to define custom tools in configuration.yaml
@@ -357,6 +397,27 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await async_remove_services(hass)
 
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Clean up after a config entry is removed.
+
+    When the last entry goes, the deployed pyscript payload goes with it:
+    the scripts exist only to feed this integration, so removal leaves
+    <config>/pyscript/ as PSA found it.
+
+    Args:
+        hass: Home Assistant instance
+        entry: Config entry being removed (already gone from the registry)
+    """
+    if hass.config_entries.async_entries(DOMAIN):
+        return
+
+    target_dir = pyscript_deploy.pyscript_target_dir(hass)
+    removed = await hass.async_add_executor_job(pyscript_deploy.remove_payload_sync, target_dir)
+    if removed:
+        _LOGGER.info("Removed deployed pyscript(s) from %s: %s", target_dir, ", ".join(removed))
+    ir.async_delete_issue(hass, DOMAIN, pyscript_deploy.ISSUE_PYSCRIPT_PAYLOAD_MISSING)
 
 
 async def async_setup_services(
