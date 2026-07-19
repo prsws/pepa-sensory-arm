@@ -255,6 +255,35 @@ text: "Turn on the living room lights"
 
 ## Next Steps
 
+## Where to Go From Here
+
+You've run the basic setup for a while and want more. There are four paths, and they're not equal:
+
+**Automations — the free win.** Wire `pepa_sensory_arm.process` into your Home Assistant
+automations (see the morning briefing example in the Use Cases). No new hardware, no new services.
+This is where Pepa stops being a chatbot you summon and starts speaking on her own.
+Do this first.
+
+**Go local — the mission move.** If you started on a cloud LLM, migrate to Ollama or
+another local endpoint. Cloud was for learning; this is where your household's words
+stop leaving the house. Fair warning: small local models are noticeably less capable
+than the cloud frontier — that gap is real, and closing it with careful configuration
+is ongoing work. **We believe harness > LLM size** and [the research agrees.](https://arxiv.org/abs/2605.12129). 
+It's independent of the other paths; take it whenever you're ready.
+
+**Vector DB mode — the toll gate.** Stand up ChromaDB ([VECTOR_DB_SETUP.md](VECTOR_DB_SETUP.md))
+for semantic entity search. Worthwhile on its own if your entity list has outgrown
+Direct mode — but its real purpose is that it's the prerequisite for the next path.
+
+**The Memory System — the reason you're here.** Long-term memory
+([MEMORY_SYSTEM.md](MEMORY_SYSTEM.md)) is what separates Pepa from every other voice
+agent. It requires Vector DB mode first, and in v0.1.x it's the youngest part of the
+system — enter with tinkerer expectations, and read the Context Mode warning above
+before you begin.
+
+Voice hardware (better satellites, custom wake word) expands independently of all four —
+add it whenever.
+
 1. **Advanced Features:**
    - [Vector DB Setup](VECTOR_DB_SETUP.md) - Enable semantic entity search
    - [Memory System](MEMORY_SYSTEM.md) - Add long-term memory capabilities
