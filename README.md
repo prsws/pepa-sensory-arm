@@ -6,8 +6,10 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.6+-blue.svg)](https://www.home-assistant.io/)
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 
-A highly customizable Home Assistant custom component that performs as the sensory arm of the Pepa system.
-AI capabilities include advanced tool calling, context injection, and conversation history management.
+## Overview
+
+Pepa Sensory Arm is a Home Assistant custom component - an AI agent that performs the sensory and memory collection functions of Pepa, the aging-in-place system described in [ai4aging.org](https://ai4aging.org). 
+It brings advanced conversational AI capabilities with tool execution, context injection, and intelligent automation management. Works with OpenAI, Ollama, LocalAI, and any OpenAI-compatible endpoint.
 
 ## What's New in v0.1.0-alpha
 
@@ -19,10 +21,7 @@ AI capabilities include advanced tool calling, context injection, and conversati
 
 ---
 
-## Overview
-
-Pepa Sensory Arm extends Home Assistant's native conversation platform to enable natural language control and monitoring of your smart home. It works with any OpenAI-compatible LLM provider, giving you flexibility to use cloud services or run models locally.
-
+ 
 **Key Capabilities:**
 - Natural language home control through any OpenAI-compatible LLM
 - Automatic context injection - LLM knows your home's current state
