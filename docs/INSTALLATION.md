@@ -21,8 +21,7 @@ Install these **before** Pepa Sensory Arm. Doing so keeps setup to a single pass
    - When adding the Pyscript integration, **enable all three configuration checkboxes, including "hass is global"**. Pepa's perception scripts will not load without them.
 
    ![Pyscript configuration dialog with all three checkboxes enabled](images/install-01-pyscript-checkboxes.png)
-4. 
-5. **Network access** to your chosen LLM endpoint (cloud or local)
+4. **Network access** to your chosen LLM endpoint (cloud or local)
 5. *Optional:* **ChromaDB server** — required for vector search and memory features (see [VECTOR_DB_SETUP.md](VECTOR_DB_SETUP.md))
 
 ## HACS Installation (Custom Repository) — Recommended
