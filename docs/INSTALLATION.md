@@ -20,7 +20,7 @@ Install these **before** Pepa Sensory Arm. Doing so keeps setup to a single pass
    - Install via HACS (instructions: https://github.com/custom-components/pyscript)
    - When adding the Pyscript integration, **enable all three configuration checkboxes, including "hass is global"**. Pepa's perception scripts will not load without them.
 
-   ![Pyscript configuration dialog with all three checkboxes enabled](docs/images/install-01-pyscript-checkboxes.png)
+   ![Pyscript configuration dialog with all three checkboxes enabled](images/install-01-pyscript-checkboxes.png)
 4. 
 5. **Network access** to your chosen LLM endpoint (cloud or local)
 5. *Optional:* **ChromaDB server** — required for vector search and memory features (see [VECTOR_DB_SETUP.md](VECTOR_DB_SETUP.md))
@@ -35,25 +35,25 @@ Pepa Sensory Arm is not yet listed in the default HACS store, but it installs cl
    - **Repository:** `https://github.com/prsws/pepa-sensory-arm`
    - **Type:** `Integration`
    
-   ![HACS Custom repositories dialog with repository URL and type filled in](docs/images/install-02-custom-repo-dialog.png)
+   ![HACS Custom repositories dialog with repository URL and type filled in](images/install-02-custom-repo-dialog.png)
 
 
 4. Click **Add**. HACS registers the repository.
 5. Close the dialog using the **"X"** — **do not click Cancel**, which discards the registration you just made
 
-   ![Screenshot placeholder: registered repository in the dialog, arrow on the X, Cancel crossed out](docs/images/install-03-close-with-x.png)
+   ![Screenshot placeholder: registered repository in the dialog, arrow on the X, Cancel crossed out](images/install-03-close-with-x.png)
 
 6. In HACS, search for **Pepa Sensory Arm** and open it
 
-   ![Pepa Sensory Arm page in HACS](docs/images/install-04-hacs-search.png)
+   ![Pepa Sensory Arm page in HACS](images/install-04-hacs-search.png)
 
 7. Click **Download** and accept the latest version
 
-   ![Download dialog showing latest version selected](docs/images/install-05-download-dialog.png)
+   ![Download dialog showing latest version selected](images/install-05-download-dialog.png)
 
 8. **Restart Home Assistant** when prompted (the prompt's appearance varies with download method; if none appears, restart via **Settings > System > Restart**)
 
-   ![the restart prompt variant](docs/images/install-06-restart-prompts.png)
+   ![the restart prompt variant](images/install-06-restart-prompts.png)
 
 ## Manual Installation (Fallback)
 
@@ -82,7 +82,7 @@ Note: manual installs do not receive HACS update notifications. Prefer the custo
 1. Navigate to **Settings** > **Devices & Services**
 2. Click **+ Add Integration** and search for **Pepa Sensory Arm**
 
-   ![Add Integration search with Pepa Sensory Arm result](docs/images/install-07-add-integration.png)
+   ![Add Integration search with Pepa Sensory Arm result](images/install-07-add-integration.png)
 
 3. Setup begins. Two paths from here:
 
@@ -90,7 +90,7 @@ Note: manual installs do not receive HACS update notifications. Prefer the custo
 
 **If Pyscript is missing:** setup stops with an error. Install Pyscript per Prerequisites step 3 (all three checkboxes), then start the Pepa Sensory Arm setup again from **+ Add Integration**.
 
-![setup error shown when Pyscript is not installed](docs/images/install-08-pyscript-missing-error.png)
+![setup error shown when Pyscript is not installed](images/install-08-pyscript-missing-error.png)
 
 ### First-time deployment (Repair flow)
 
@@ -98,12 +98,12 @@ Pepa Sensory Arm's default system prompt reads its device catalog from `sensor.p
 
 On a fresh install the bundled scripts are not yet in your `<config>/pyscript/` folder, so setup raises a fixable issue under **Settings > System > Repairs** titled **"Pepa perception scripts are not installed"**:
 
-![Repairs page showing "Pepa perception scripts are not installed"](docs/images/install-09-repair-notice.png)
+![Repairs page showing "Pepa perception scripts are not installed"](images/install-09-repair-notice.png)
 
 1. Click **Fix** and confirm. The three scripts are copied into `<config>/pyscript/` (the folder is created if needed) and Pyscript auto-loads them.
 2. **Known issue (v0.1.x):** after the fix, an error dialog may appear. Click **Ignore** — it is cosmetic and setup completes normally behind it.
 
-   ![cosmetic error dialog after Fix, with Ignore highlighted](docs/images/install-10-repair-cosmetic-error.png)
+   ![cosmetic error dialog after Fix, with Ignore highlighted](images/install-10-repair-cosmetic-error.png)
 3. This Repair occurs **only once**, during initial installation. Updates redeploy the scripts silently.
 
 If setup still reports the entity-context sensor as missing after the fix, re-check the three Pyscript configuration checkboxes.
@@ -120,7 +120,7 @@ Removing the last Pepa Sensory Arm config entry deletes the three deployed scrip
 
 ### Configure the primary LLM
 
-![initial configuration form with example values filled in](docs/images/install-11-llm-config-form.png)
+![initial configuration form with example values filled in](images/install-11-llm-config-form.png)
 
 | Field | Example Value |
 |-------|---------------|
@@ -205,23 +205,23 @@ text: "Turn on the living room lights"
 3. Expose the entities you want it to control via **Expose Entities**
 4. Test by voice or via the Assist dialog. Bingo!
 
-![successful Assist conversation with Pepa Sensory Arm as agent](docs/images/install-12-voice-test-success.png)
+![successful Assist conversation with Pepa Sensory Arm as agent](images/install-12-voice-test-success.png)
 
 ## Updating Pepa Sensory Arm
 
 1. **Confirm your current version:** HACS > Pepa Sensory Arm
 2. In HACS, open the Pepa repo's three-dot menu and select **Update Information** to force a refresh. Within moments a notification badge appears in the sidebar and the repo shows **Pending Update**
 
-   ![Pending Update status and sidebar notification badge](docs/images/update-01-pending-update.png)
+   ![Pending Update status and sidebar notification badge](images/update-01-pending-update.png)
 
 3. Go to **Settings** and start the update; click **Update**
 
-   ![Settings update card with Update button](docs/images/update-02-settings-update.png)
+   ![Settings update card with Update button](images/update-02-settings-update.png)
 
 4. Once updated, click **Submit** and **restart Home Assistant**
 5. After restart, confirm the new version in HACS and re-run the Quick Test
 
-   ![Screenshot placeholder: HACS showing the new version installed](docs/images/update-03-version-confirm.png)
+   ![Screenshot placeholder: HACS showing the new version installed](images/update-03-version-confirm.png)
 
 **Reminder:** every update silently redeploys the bundled perception scripts, overwriting any local edits (see warning above).
 
