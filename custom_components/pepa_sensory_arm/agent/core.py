@@ -121,6 +121,7 @@ from ..const import (
     CONF_HISTORY_PERSIST,
     CONF_LLM_MODEL,
     CONF_MEMORY_EXTRACTION_ENABLED,
+    CONF_PREROLL_TONE,
     CONF_PROMPT_CUSTOM,
     CONF_PROMPT_CUSTOM_ADDITIONS,
     CONF_PROMPT_INCLUDE_LABELS,
@@ -134,6 +135,7 @@ from ..const import (
     DEFAULT_HISTORY_MAX_MESSAGES,
     DEFAULT_HISTORY_MAX_TOKENS,
     DEFAULT_MEMORY_EXTRACTION_ENABLED,
+    DEFAULT_PREROLL_TONE,
     DEFAULT_PROMPT_HEAD,
     DEFAULT_PROMPT_INCLUDE_LABELS,
     DEFAULT_PROMPT_TAIL,
@@ -168,6 +170,7 @@ from ..tools.custom import CustomToolHandler
 from ..tools.external_llm import ExternalLLMTool
 from .llm import LLMMixin
 from .memory_extraction import MemoryExtractionMixin
+from .preroll import PrerollGate
 from .streaming import StreamingMixin
 
 _LOGGER = logging.getLogger(__name__)
@@ -1098,6 +1101,14 @@ class PepaSensoryArm(
         # Track TTFT (Time To First Token) - only set once on first iteration
         first_content_time: float | None = None
 
+        # Pre-roll tone: played on the satellite once per turn, just before the
+        # first spoken text reaches the TTS pipeline (see agent/preroll.py).
+        preroll = PrerollGate(
+            self.hass,
+            device_id,
+            enabled=self.config.get(CONF_PREROLL_TONE, DEFAULT_PREROLL_TONE),
+        )
+
         for iteration in range(max_iterations):
             _LOGGER.debug("Starting streaming iteration %d/%d", iteration + 1, max_iterations)
             # Call LLM with streaming
@@ -1115,7 +1126,7 @@ class PepaSensoryArm(
             new_content = []
             async for content in chat_log.async_add_delta_content_stream(
                 entry_id,
-                handler.transform_openai_stream(stream),
+                preroll.wrap(handler.transform_openai_stream(stream)),
             ):
                 # Track TTFT on first content item
                 if first_content_time is None:
@@ -1388,6 +1399,14 @@ class PepaSensoryArm(
             user_id=user_input.context.user_id if user_input.context else None,
             device_id=user_input.device_id,
         )
+
+        # Pre-roll tone just before the reply is handed to the TTS pipeline
+        if response_text and response_text.strip():
+            await PrerollGate(
+                self.hass,
+                user_input.device_id,
+                enabled=self.config.get(CONF_PREROLL_TONE, DEFAULT_PREROLL_TONE),
+            ).async_fire()
 
         # Create and return conversation result
         intent_response = intent.IntentResponse(language=user_input.language)

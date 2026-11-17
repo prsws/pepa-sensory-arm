@@ -124,6 +124,9 @@ CONF_EMIT_EVENTS: Final = "emit_events"
 # Configuration keys - Streaming
 CONF_STREAMING_ENABLED: Final = "streaming_enabled"
 
+# Configuration keys - Pre-roll tone (played on the satellite before a reply)
+CONF_PREROLL_TONE: Final = "preroll_tone"
+
 # Configuration keys - Conversation Session
 CONF_SESSION_TIMEOUT: Final = "session_timeout"
 CONF_SESSION_PERSISTENCE_ENABLED: Final = "session_persistence_enabled"
@@ -295,6 +298,9 @@ DEFAULT_EMIT_EVENTS: Final = True
 
 # Default values - Streaming
 DEFAULT_STREAMING_ENABLED: Final = False
+
+# Default values - Pre-roll tone
+DEFAULT_PREROLL_TONE: Final = True
 
 # Default values - Conversation Session
 DEFAULT_SESSION_TIMEOUT: Final = 3600  # 1 hour in seconds
