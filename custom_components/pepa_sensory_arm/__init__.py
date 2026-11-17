@@ -19,6 +19,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from . import pyscript_deploy
 from .agent import PepaSensoryArm
+from .agent.preroll import async_register_preroll_path
 from .chroma_factory import ChromaClientFactory
 from .const import (
     CHROMA_PLACEMENT_REMOTE,
@@ -65,6 +66,9 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     if DOMAIN in config:
         hass.data[DOMAIN]["yaml_config"] = config[DOMAIN]
         _LOGGER.info("Loaded Pepa Sensory Arm YAML configuration")
+
+    # Serve the pre-roll tone that satellites play before a reply
+    await async_register_preroll_path(hass)
 
     return True
 
